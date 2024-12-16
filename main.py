@@ -1,4 +1,6 @@
 import os
+import time
+
 import requests
 from requests import Response
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
@@ -76,6 +78,7 @@ def add_alarms(api, ips: list[str]) -> list[str]:
             ip = f"{spl[0]}.{spl[1]}.{spl[2]}.0/24"
             if ip not in ips:
                 ips.append(ip)
+                print(ip)
     return ips
 
 def add_ci_bad_guys(cur_ips: list[str]) -> list[str]:
@@ -102,8 +105,8 @@ if __name__ == "__main__":
     current_group = api.firewall_group("get", IP_BLOCK)
     data = current_group.json()["data"][0]
     ips = data["group_members"]
-    ips = add_alarms(api, ips)
-    # ips = add_ci_bad_guys(ips)
-
-    data.update({"group_members": sorted(ips)})
-    api.firewall_group("put", IP_BLOCK, request_data=data)
+    while True:
+        ips = add_alarms(api, ips)
+        data.update({"group_members": sorted(ips)})
+        api.firewall_group("put", IP_BLOCK, request_data=data)
+        time.sleep(60)
