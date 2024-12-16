@@ -4,6 +4,7 @@ coverage[toml]
 mypy
 pre-commit
 pytest
+requests-mock
 ruff
-types-requests
 twine
+types-requests
