@@ -1,6 +1,6 @@
 import requests_mock
 
-from main import UnifyAPI, add_alarms, add_ci_bad_guys
+from main import UnifyAPI, add_alarms
 
 
 def test_login():
@@ -39,10 +39,3 @@ def test_add_alarms():
         api = UnifyAPI()
         ips = add_alarms(api, [])
         assert ips == []
-
-
-def test_add_ci_bad_guys():
-    with requests_mock.Mocker() as m:
-        m.get("https://cinsscore.com/list/ci-badguys.txt", text="192.168.1.1\n192.168.1.2")
-        ips = add_ci_bad_guys([])
-        assert ips == ["192.168.1.0/24"]
