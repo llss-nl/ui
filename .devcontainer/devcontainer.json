@@ -1,26 +1,17 @@
-
 {
-  "name": "Python 3",
-  "build": {
-    "dockerfile": "Dockerfile",
-    "context": "."
-  },
-  "customizations": {
-    "jetbrains": {
-      "backend": "PyCharm"
-    }
-  },
-//  "settings": {
-//        "terminal.integrated.shell.linux": "/bin/bash"
-//    },
-//    "extensions": [
-//        "ms-vscode.cpptools",
-//        "ms-python.python",
-//        "actboy168.tasks"
-//    ],
+    "name": "Python 3",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "."
+    },
+    "customizations": {
+        "jetbrains": {
+            "backend": "PyCharm"
+        }
+    },
     "postCreateCommand": "echo 'Container setup complete!'",
     "remoteUser": "root",
-  "mounts": [
-    "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
-  ]
+    "mounts": [
+        "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+    ]
 }

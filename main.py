@@ -2,9 +2,9 @@ import os
 import time
 
 import requests
+from dotenv import load_dotenv
 from requests import Response
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
-from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
@@ -17,8 +17,8 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 headers = {"Accept": "application/json", "Content-Type": "application/json"}
 DATA = {"username": os.getenv("API_USERNAME"), "password": os.getenv("API_PASSWORD")}
 
-class UnifyAPI:
 
+class UnifyAPI:
     def __init__(self) -> None:
         self.headers = {
             "Accept": "application/json",
@@ -38,7 +38,10 @@ class UnifyAPI:
         self.headers.update({"X-Csrf-Token": response.headers["X-Csrf-Token"]})
 
     def firewall_group(
-        self, method: str, group_id: str, request_data: dict | None = None
+        self,
+        method: str,
+        group_id: str,
+        request_data: dict | None = None,
     ) -> Response:
         url = f"{BASE_URI}/proxy/network/api/s/default/rest/firewallgroup/{group_id}"
         return self._make_request(
@@ -70,6 +73,7 @@ class UnifyAPI:
             timeout=timeout,
         )
 
+
 def add_alarms(api, ips: list[str]) -> list[str]:
     alarms = api.alarm()
     for alarm in alarms.json()["data"]:
@@ -81,11 +85,12 @@ def add_alarms(api, ips: list[str]) -> list[str]:
                 print(ip)
     return ips
 
+
 def add_ci_bad_guys(cur_ips: list[str]) -> list[str]:
     subs = set()
     values = requests.get(
         "https://cinsscore.com/list/ci-badguys.txt",
-        verify=False,
+        verify=False,  # noqa: S501
         timeout=1,
     ).text
     ips = list(values.split("\n"))
@@ -98,6 +103,7 @@ def add_ci_bad_guys(cur_ips: list[str]) -> list[str]:
         if sub not in cur_ips:
             cur_ips.append(sub)
     return cur_ips
+
 
 if __name__ == "__main__":
     api = UnifyAPI()

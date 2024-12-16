@@ -1,0 +1,9 @@
+-r requirements.txt
+build
+coverage[toml]
+mypy
+pre-commit
+pytest
+ruff
+types-requests
+twine
