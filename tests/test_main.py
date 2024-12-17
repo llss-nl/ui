@@ -40,6 +40,7 @@ def test_add_alarms():
         ips = add_alarms(api, [])
         assert ips == []
 
+
 def test_add_alarms__non_local_not_ips__correct_list():
     with requests_mock.Mocker() as m:
         m.get(
@@ -48,7 +49,8 @@ def test_add_alarms__non_local_not_ips__correct_list():
         )
         api = UnifyAPI()
         ips = add_alarms(api, [])
-        assert ips == ['8.123.234.0/24']
+        assert ips == ["8.123.234.0/24"]
+
 
 def test_add_alarms__non_local_in_ips__correct_list():
     with requests_mock.Mocker() as m:
@@ -57,5 +59,5 @@ def test_add_alarms__non_local_in_ips__correct_list():
             json={"data": [{"src_ip": "8.123.234.234"}]},
         )
         api = UnifyAPI()
-        ips = add_alarms(api, ['8.123.234.0/24'])
-        assert ips == ['8.123.234.0/24']
+        ips = add_alarms(api, ["8.123.234.0/24"])
+        assert ips == ["8.123.234.0/24"]
