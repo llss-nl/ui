@@ -1,0 +1,119 @@
+name: CI
+
+on:
+  push: ~
+  pull_request: ~
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  DEFAULT_PYTHON: "3.13"
+  PRE_COMMIT_CACHE: ~/.cache/pre-commit
+
+jobs:
+  setup:
+    name: Set up Python and cache
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out code from GitHub
+        uses: actions/checkout@v4.2.2
+      - name: Set up Python ${{ env.DEFAULT_PYTHON }}
+        id: set-python
+        uses: actions/setup-python@v5.3.0
+        with:
+          python-version: ${{ env.DEFAULT_PYTHON }}
+          check-latest: true
+      - name: Create Python virtual environment
+        run: python -m venv venv
+      - name: Cache base Python virtual environment
+        id: cache-venv
+        uses: actions/cache@v4.2.0
+        with:
+          path: venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/requirements*.txt') }}
+      - name: Install dependencies
+        if: steps.cache-venv.outputs.cache-hit != 'true'
+        run: |
+          . venv/bin/activate
+          python --version
+          pip install uv
+          uv pip install -r requirements-dev.txt
+      - name: Cache pre-commit environment
+        id: cache-precommit
+        uses: actions/cache@v4.2.0
+        with:
+          path: ${{ env.PRE_COMMIT_CACHE }}
+          key: ${{ runner.os }}-precommit-${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: Install pre-commit dependencies
+        if: steps.cache-precommit.outputs.cache-hit != 'true'
+        run: |
+          . venv/bin/activate
+          pre-commit install-hooks
+  lint:
+    name: Run linters
+    runs-on: ubuntu-24.04
+    needs: setup
+    strategy:
+      matrix:
+        linter: [ruff-format, ruff, mypy, check-json, codespell]
+    steps:
+      - name: Check out code from GitHub
+        uses: actions/checkout@v4.2.2
+      - name: Set up Python ${{ needs.setup.outputs.python-version }}
+        uses: actions/setup-python@v5.3.0
+        with:
+          python-version: ${{ env.DEFAULT_PYTHON }}
+          check-latest: true
+      - name: Restore base Python virtual environment
+        uses: actions/cache@v4.2.0
+        with:
+          path: venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/requirements*.txt') }}
+      - name: Restore pre-commit environment from cache
+        uses: actions/cache@v4.2.0
+        with:
+          path: ${{ env.PRE_COMMIT_CACHE }}
+          key: ${{ runner.os }}-precommit-${{ hashFiles('.pre-commit-config.yaml') }}
+      - name: Run ${{ matrix.linter }}
+        run: |
+          . venv/bin/activate
+          pre-commit run --hook-stage manual ${{ matrix.linter }} --all-files --show-diff-on-failure
+        env:
+          RUFF_OUTPUT_FORMAT: github
+
+  pytest-full:
+    runs-on: ubuntu-24.04
+    needs:
+      - lint
+    name: Run tests Python
+    steps:
+      - name: Check out code from GitHub
+        uses: actions/checkout@v4.2.2
+      - name: Set up Python ${{ needs.setup.outputs.python-version }}
+        uses: actions/setup-python@v5.3.0
+        with:
+          python-version: ${{ env.DEFAULT_PYTHON }}
+          check-latest: true
+      - name: Restore full Python virtual environment
+        uses: actions/cache@v4.2.0
+        with:
+          path: venv
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/requirements*.txt') }}
+      - name: Run pytest
+        timeout-minutes: 60
+        env:
+          PYTHONDONTWRITEBYTECODE: 1
+        run: |
+          . venv/bin/activate
+          python --version
+          python -m coverage run -m pytest --junitxml=pytest-results.xml
+          coverage xml -o coverage.xml
+          python -m coverage report --fail-under=100
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4.4.3
+        with:
+          name: coverage
+          path: coverage.xml
+          overwrite: true
