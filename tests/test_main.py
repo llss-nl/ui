@@ -39,3 +39,25 @@ def test_add_alarms():
         api = UnifyAPI()
         ips = add_alarms(api, [])
         assert ips == []
+
+
+def test_add_alarms__non_local_not_ips__correct_list():
+    with requests_mock.Mocker() as m:
+        m.get(
+            "https://192.168.100.1/proxy/network/api/s/default/stat/alarm",
+            json={"data": [{"src_ip": "8.123.234.234"}]},
+        )
+        api = UnifyAPI()
+        ips = add_alarms(api, [])
+        assert ips == ["8.123.234.0/24"]
+
+
+def test_add_alarms__non_local_in_ips__correct_list():
+    with requests_mock.Mocker() as m:
+        m.get(
+            "https://192.168.100.1/proxy/network/api/s/default/stat/alarm",
+            json={"data": [{"src_ip": "8.123.234.234"}]},
+        )
+        api = UnifyAPI()
+        ips = add_alarms(api, ["8.123.234.0/24"])
+        assert ips == ["8.123.234.0/24"]

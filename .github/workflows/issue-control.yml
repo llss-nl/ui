@@ -1,0 +1,77 @@
+name: Issue Assignment
+on:
+  issue_comment:
+    types: [created]
+  issues:
+    types: [assigned]
+  pull_request:
+    types: [closed]
+jobs:
+  create-branch:
+    if: contains(github.event.comment.body, '/CIB') || github.event.action == 'assigned'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Set YAML Outputs
+        uses: actions-tools/yaml-outputs@v2
+        id: yaml
+        with:
+          file-path: '.github/issue-config.yml'
+      - name: Read Issue Config
+        run: |
+            echo "autoCloseIssue=${{ steps.yaml.outputs.autoCloseIssue }}" >> $GITHUB_ENV
+            echo "defaultBranch=${{ steps.yaml.outputs.defaultBranch }}" >> $GITHUB_ENV
+            echo "gitSafeReplacementChar=${{ steps.yaml.outputs.gitSafeReplacementChar }}" >> $GITHUB_ENV
+      - name: Set Branch Name
+        id: set-branch-name
+        run: |
+          branch_name=$(echo "issue-${{ github.event.issue.number }} ${{ github.event.issue.title }}" | tr '[:upper:]' '[:lower:]' | tr ' ' '${{ env.gitSafeReplacementChar }}')
+          echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
+      - name: Fetch Development Branch
+        run: |
+          git fetch origin ${{ env.defaultBranch }}:${{ env.defaultBranch }}
+      - name: Checkout Branch
+        run: |
+          git checkout ${{ env.defaultBranch }}
+      - name: Create Branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          branch_name=${{ steps.set-branch-name.outputs.branch_name }}
+          git checkout -b $branch_name
+          git push --set-upstream origin $branch_name
+      - name: Add Comment to Issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          issue_number=${{ github.event.issue.number }}
+          branch_name=${{ steps.set-branch-name.outputs.branch_name }}
+          repo_url=https://api.github.com/repos/${{ github.repository }}
+          branch_url=https://github.com/${{ github.repository }}/tree/$branch_name
+          curl -X POST -H "Authorization: Bearer $GITHUB_TOKEN" \
+               -H "Accept: application/vnd.github.v3+json" \
+               $repo_url/issues/$issue_number/comments \
+               -d '{"body": "Branch created: ['$branch_name']('$branch_url')"}'
+  close-issue:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read Issue Config
+        run: |
+          autoCloseIssue=$(yq e '.autoCloseIssue' .github/issue-config.yml)
+          echo "autoCloseIssue=$autoCloseIssue" >> $GITHUB_ENV
+      - name: Close Issue
+        if: env.autoCloseIssue == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ "${{ github.event.pull_request.merged }}" = "true" ]; then
+            issue_number=$(echo "${{ github.event.pull_request.head.ref }}" | grep -oP '(?<=issue-)\d+')
+            if [ -n "$issue_number" ]; then
+              curl -X PATCH -H "Authorization: Bearer $GITHUB_TOKEN" \
+                   -H "Accept: application/vnd.github.v3+json" \
+                   https://api.github.com/repos/${{ github.repository }}/issues/$issue_number \
+                   -d '{"state": "closed"}'
+            fi
+          fi
