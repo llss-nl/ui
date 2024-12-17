@@ -90,7 +90,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["ANN101", "D203", "D213", "COM812", "ISC001"]
+ignore = ["D203", "D213", "COM812", "ISC001"]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
@@ -105,6 +105,9 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "tests/**"= ["A", "ANN", "D", "PLR2004", "PT", "S101"]
 
 [tool.mypy]
+exclude = [
+    "venv/*",
+]
 check_untyped_defs = true
 disallow_any_generics = true
 disallow_incomplete_defs = true
