@@ -30,7 +30,7 @@ jobs:
           echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
       - name: Fetch Development Branch
         run: |
-          git fetch origin ${{ env.defaultBranch }}:${{ env.defaultBranch }}
+          git fetch origin ${{ env.defaultBranch }}
       - name: Checkout Branch
         run: |
           git checkout ${{ env.defaultBranch }}
