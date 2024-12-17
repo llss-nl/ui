@@ -79,5 +79,7 @@ jobs:
                    -H "Accept: application/vnd.github.v3+json" \
                    https://api.github.com/repos/${{ github.repository }}/issues/$issue_number \
                    -d '{"state": "closed"}'
+            else
+              echo "No issue number found in the branch name."
             fi
           fi
