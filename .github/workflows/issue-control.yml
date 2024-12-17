@@ -57,10 +57,14 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
+      - name: Set YAML Outputs
+        uses: actions-tools/yaml-outputs@v2
+        id: yaml
+        with:
+          file-path: '.github/issue-config.yml'
       - name: Read Issue Config
         run: |
-          autoCloseIssue=$(yq e '.autoCloseIssue' .github/issue-config.yml)
-          echo "autoCloseIssue=$autoCloseIssue" >> $GITHUB_ENV
+            echo "autoCloseIssue=${{ steps.yaml.outputs.autoCloseIssue }}" >> $GITHUB_ENV
       - name: Close Issue
         if: env.autoCloseIssue == 'true'
         env:
