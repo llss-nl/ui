@@ -130,7 +130,7 @@ def add_alarms(api: UnifyAPI, ips: list[str]) -> list[str]:
     logger.info("Adding alarms")
     alarms = api.alarm()
     for alarm in alarms.json()["data"]:
-        if "src_ip" in alarm and not alarm["src_ip"].startswith("192.168"):
+        if "src_ip" in alarm and not (alarm["src_ip"].startswith("192.168") or alarm["src_ip"] == "10.0.0.125"):
             spl = alarm["src_ip"].split(".")
             ip = f"{spl[0]}.{spl[1]}.{spl[2]}.0/24"
             if ip not in ips:
@@ -141,6 +141,7 @@ def add_alarms(api: UnifyAPI, ips: list[str]) -> list[str]:
 
 
 if __name__ == "__main__":
+    """Start the main section of the application."""
     logger.info("Starting main process")
     api = UnifyAPI()
     api.login()
