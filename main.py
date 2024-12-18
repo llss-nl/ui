@@ -72,8 +72,6 @@ class UnifyAPI:
 
         """
         url = f"{BASE_URI}/proxy/network/api/s/default/rest/firewallgroup/{group_id}"
-        msg = f"Making {method} request to firewall group {group_id}"
-        logger.info(msg)
         return self._make_request(
             method=method,
             url=url,
@@ -89,7 +87,6 @@ class UnifyAPI:
 
         """
         url = f"{BASE_URI}/proxy/network/api/s/default/stat/alarm"
-        logger.info("Fetching alarms")
         return self._make_request(
             method="get",
             url=url,
@@ -127,7 +124,6 @@ def add_alarms(api: UnifyAPI, ips: list[str]) -> list[str]:
         list: The updated list of IPs
 
     """
-    logger.info("Adding alarms")
     alarms = api.alarm()
     for alarm in alarms.json()["data"]:
         if "src_ip" in alarm and not (alarm["src_ip"].startswith("192.168") or alarm["src_ip"] == "10.0.0.125"):
@@ -152,5 +148,4 @@ if __name__ == "__main__":
         ips = add_alarms(api, ips)
         data.update({"group_members": sorted(ips)})
         api.firewall_group("put", IP_BLOCK, request_data=data)
-        logger.info("Updated firewall group with new IPs")
         time.sleep(60)
