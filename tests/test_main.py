@@ -1,3 +1,4 @@
+import pytest
 import requests_mock
 
 from main import UnifyAPI, add_alarms
@@ -30,11 +31,12 @@ def test_alarm():
         assert response.json() == {"data": []}
 
 
-def test_add_alarms():
+@pytest.mark.parametrize("src_ip", ["192.168.1.1", "10.0.0.125"])
+def test_add_alarms__local_ip__not_added(src_ip):
     with requests_mock.Mocker() as m:
         m.get(
             "https://192.168.100.1/proxy/network/api/s/default/stat/alarm",
-            json={"data": [{"src_ip": "192.168.1.1"}]},
+            json={"data": [{"src_ip": src_ip}]},
         )
         api = UnifyAPI()
         ips = add_alarms(api, [])
