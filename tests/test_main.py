@@ -1,6 +1,10 @@
+import importlib
+from unittest.mock import patch
+
 import pytest
 import requests_mock
 
+import main
 from main import UnifyAPI, add_alarms
 
 
@@ -63,3 +67,17 @@ def test_add_alarms__non_local_in_ips__correct_list():
         api = UnifyAPI()
         ips = add_alarms(api, ["8.123.234.0/24"])
         assert ips == ["8.123.234.0/24"]
+
+
+def test_load_dotenv_called():
+    with patch("os.getenv") as mock_getenv, patch("dotenv.load_dotenv") as mock_load_dotenv:
+        mock_getenv.side_effect = lambda key: None if key in ["API_USERNAME", "API_PASSWORD"] else "value"
+        importlib.reload(main)
+        mock_load_dotenv.assert_called_once()
+
+
+def test_load_dotenv_not_called():
+    with patch("os.getenv") as mock_getenv, patch("main.load_dotenv") as mock_load_dotenv:
+        mock_getenv.side_effect = lambda _key: "value"
+        importlib.reload(main)
+        mock_load_dotenv.assert_not_called()

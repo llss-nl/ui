@@ -10,8 +10,9 @@ from dotenv import load_dotenv
 from requests import Response
 from requests.packages.urllib3.exceptions import InsecureRequestWarning  # type: ignore [import-untyped]
 
-# Load environment variables from .env file
-load_dotenv()
+if not os.getenv("API_USERNAME") and not os.getenv("API_PASSWORD"):
+    # Load environment variables from .env file
+    load_dotenv()
 
 IP_BLOCK = "662fa7f339ff5e79202dd1bd"
 BASE_URI = "https://192.168.100.1"
