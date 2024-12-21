@@ -181,3 +181,35 @@ def test_env_variables_not_loaded():
     ):
         reload(main)
         mock_load_dotenv.assert_not_called()
+
+
+def test_main():
+    with (
+        mock.patch("main.UnifyAPI") as mock_api,
+        mock.patch("main.loop_add_alarms") as mock_loop_add_alarms,
+    ):
+        main.main()
+        mock_api.assert_called_once()
+        mock_api.return_value.login.assert_called_once()
+        mock_api.return_value.firewall_group.assert_called()
+        mock_loop_add_alarms.assert_called()
+
+
+def test_main__raise_keyboard_interrupt__logout():
+    with (
+        mock.patch("main.UnifyAPI") as mock_api,
+        mock.patch("main.loop_add_alarms", side_effect=KeyboardInterrupt),
+    ):
+        main.main()
+        mock_api.assert_called_once()
+        mock_api.return_value.logout.assert_called_once()
+
+
+def test_logout():
+    with requests_mock.Mocker() as m:
+        api = main.UnifyAPI()
+        m.post(
+            "https://test_url:443/api/auth/logout",
+            status_code=200,
+        )
+        api.logout()
