@@ -57,7 +57,7 @@ jobs:
     needs: setup
     strategy:
       matrix:
-        linter: [ruff-format, ruff, mypy, check-json, codespell]
+        linter: [ruff, mypy, check-json, codespell, black]
     steps:
       - name: Check out code from GitHub
         uses: actions/checkout@v4.2.2

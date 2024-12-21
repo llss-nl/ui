@@ -8,7 +8,7 @@ from typing import Any
 import requests
 from dotenv import load_dotenv
 from requests import Response
-from requests.packages.urllib3.exceptions import InsecureRequestWarning  # type: ignore [import-untyped]
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 # Load environment variables from .env file
 load_dotenv()
@@ -21,7 +21,10 @@ headers = {"Accept": "application/json", "Content-Type": "application/json"}
 DATA = {"username": os.getenv("API_USERNAME"), "password": os.getenv("API_PASSWORD")}
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 
@@ -59,7 +62,8 @@ class UnifyAPI:
         group_id: str | None = None,
         request_data: dict[str, Any] | None = None,
     ) -> Response:
-        """Get or update the firewall group.
+        """
+        Get or update the firewall group.
 
         Args:
             method: The method to use
@@ -81,7 +85,8 @@ class UnifyAPI:
         )
 
     def alarm(self) -> Response:
-        """Get the alarms.
+        """
+        Get the alarms.
 
         Returns:
             Response: The alarms
@@ -115,7 +120,8 @@ class UnifyAPI:
 
 
 def add_alarms(api: UnifyAPI, ips: list[str]) -> list[str]:
-    """Add ip from the alarms to the firewall group.
+    """
+    Add ip from the alarms to the firewall group.
 
     Args:
         api: The UnifyAPI object
@@ -127,7 +133,9 @@ def add_alarms(api: UnifyAPI, ips: list[str]) -> list[str]:
     """
     alarms = api.alarm()
     for alarm in alarms.json()["data"]:
-        if "src_ip" in alarm and not (alarm["src_ip"].startswith("192.168") or alarm["src_ip"] == "10.0.0.125"):
+        if "src_ip" in alarm and not (
+            alarm["src_ip"].startswith("192.168") or alarm["src_ip"] == "10.0.0.125"
+        ):
             spl = alarm["src_ip"].split(".")
             ip = f"{spl[0]}.{spl[1]}.{spl[2]}.0/24"
             if ip not in ips:
@@ -138,7 +146,8 @@ def add_alarms(api: UnifyAPI, ips: list[str]) -> list[str]:
 
 
 def get_firewall_group(api: UnifyAPI, name: str) -> str:
-    """Get the firewall group.
+    """
+    Get the firewall group.
 
     Args:
         name: The name of the firewall group
