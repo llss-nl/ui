@@ -45,6 +45,17 @@ class UnifyAPI:
         self.session.close()
         logger.info("UnifyAPI session closed")
 
+    def is_connected(self) -> bool:
+        """Check if the connection is still available."""
+        try:
+            response = self.alarm()
+        except requests.RequestException as e:
+            msg = f"Connection check failed: {e}"
+            logger.exception(msg)
+            return False
+        else:
+            return response.status_code == requests.codes.ok
+
     def login(self) -> None:
         """Log in to the API."""
         logger.info("Attempting to log in")
@@ -176,6 +187,8 @@ if __name__ == "__main__":
     data = current_group.json()["data"][0]
     ips = data["group_members"]
     while True:
+        if not api.is_connected():
+            api.login()
         ips = add_alarms(api, ips)
         data.update({"group_members": sorted(ips)})
         api.firewall_group("put", ip_block, request_data=data)

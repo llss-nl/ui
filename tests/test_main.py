@@ -1,4 +1,5 @@
 import pytest
+import requests
 import requests_mock
 
 import main
@@ -133,3 +134,24 @@ def test_get_firewall_group__non_existing__empty_string():
         group_id = main.get_firewall_group(api, "test2")
 
         assert group_id == ""
+
+
+@pytest.mark.parametrize(("status_code", "expected"), [(200, True), (401, False)])
+def test_is_connected__try_connected__response(status_code, expected):
+    with requests_mock.Mocker() as m:
+        api = main.UnifyAPI()
+        m.get(
+            "https://192.168.100.1/proxy/network/api/s/default/stat/alarm",
+            status_code=status_code,
+        )
+        assert api.is_connected() is expected
+
+
+def test_is_connected__try_connected__exception():
+    with requests_mock.Mocker() as m:
+        api = main.UnifyAPI()
+        m.get(
+            "https://192.168.100.1/proxy/network/api/s/default/stat/alarm",
+            exc=requests.exceptions.ConnectTimeout,
+        )
+        assert api.is_connected() is False
