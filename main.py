@@ -13,7 +13,6 @@ from requests.packages.urllib3.exceptions import InsecureRequestWarning  # type:
 # Load environment variables from .env file
 load_dotenv()
 
-IP_BLOCK = "662fa7f339ff5e79202dd1bd"
 BASE_URI = "https://192.168.100.1"
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)  # type: ignore [attr-defined]
@@ -57,7 +56,7 @@ class UnifyAPI:
     def firewall_group(
         self,
         method: str,
-        group_id: str,
+        group_id: str | None = None,
         request_data: dict[str, Any] | None = None,
     ) -> Response:
         """Get or update the firewall group.
@@ -71,6 +70,8 @@ class UnifyAPI:
             Response: The response from the API
 
         """
+        if group_id is None:
+            group_id = ""
         url = f"{BASE_URI}/proxy/network/api/s/default/rest/firewallgroup/{group_id}"
         return self._make_request(
             method=method,
@@ -136,16 +137,37 @@ def add_alarms(api: UnifyAPI, ips: list[str]) -> list[str]:
     return ips
 
 
+def get_firewall_group(api: UnifyAPI, name: str) -> str:
+    """Get the firewall group.
+
+    Args:
+        name: The name of the firewall group
+        api: The UnifyAPI object
+
+    Returns:
+        str: The firewall group ID
+
+    """
+    response = api.firewall_group("get")
+    response_json = response.json()["data"]
+    for group in response_json:
+        if group["name"] == name:
+            return group["_id"]
+    return ""
+
+
 if __name__ == "__main__":
     """Start the main section of the application."""
     logger.info("Starting main process")
     api = UnifyAPI()
     api.login()
-    current_group = api.firewall_group("get", IP_BLOCK)
+    ip_block = get_firewall_group(api, "test")
+
+    current_group = api.firewall_group("get", ip_block)
     data = current_group.json()["data"][0]
     ips = data["group_members"]
     while True:
         ips = add_alarms(api, ips)
         data.update({"group_members": sorted(ips)})
-        api.firewall_group("put", IP_BLOCK, request_data=data)
+        api.firewall_group("put", ip_block, request_data=data)
         time.sleep(60)
