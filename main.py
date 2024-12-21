@@ -10,10 +10,12 @@ from dotenv import load_dotenv
 from requests import Response
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
-# Load environment variables from .env file
-load_dotenv()
+if not os.getenv("API_USERNAME") or not os.getenv("API_PASSWORD"):
+    # Load environment variables from .env file
+    load_dotenv()
 
-BASE_URI = "https://192.168.100.1"
+host = os.getenv("API_HOST", "test_url")
+BASE_URI = f"https://{host}"
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)  # type: ignore [attr-defined]
 

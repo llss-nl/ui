@@ -1,3 +1,7 @@
+import os
+from importlib import reload
+from unittest import mock
+
 import pytest
 import requests
 import requests_mock
@@ -5,10 +9,14 @@ import requests_mock
 import main
 
 
+def fixture_api():
+    return main.UnifyAPI()
+
+
 def test_login():
     with requests_mock.Mocker() as m:
         m.post(
-            "https://192.168.100.1:443/api/auth/login",
+            "https://test_url:443/api/auth/login",
             headers={"X-Csrf-Token": "test_token"},
         )
         api = main.UnifyAPI()
@@ -19,7 +27,7 @@ def test_login():
 def test_firewall_group():
     with requests_mock.Mocker() as m:
         m.get(
-            "https://192.168.100.1/proxy/network/api/s/default/rest/firewallgroup/662fa7f339ff5e79202dd1bd",
+            "https://test_url/proxy/network/api/s/default/rest/firewallgroup/662fa7f339ff5e79202dd1bd",
             json={"data": []},
         )
         api = main.UnifyAPI()
@@ -30,7 +38,7 @@ def test_firewall_group():
 def test_alarm():
     with requests_mock.Mocker() as m:
         m.get(
-            "https://192.168.100.1/proxy/network/api/s/default/stat/alarm",
+            "https://test_url/proxy/network/api/s/default/stat/alarm",
             json={"data": []},
         )
         api = main.UnifyAPI()
@@ -42,7 +50,7 @@ def test_alarm():
 def test_add_alarms__local_ip__not_added(src_ip):
     with requests_mock.Mocker() as m:
         m.get(
-            "https://192.168.100.1/proxy/network/api/s/default/stat/alarm",
+            "https://test_url/proxy/network/api/s/default/stat/alarm",
             json={"data": [{"src_ip": src_ip}]},
         )
         api = main.UnifyAPI()
@@ -53,7 +61,7 @@ def test_add_alarms__local_ip__not_added(src_ip):
 def test_add_alarms__non_local_not_ips__correct_list():
     with requests_mock.Mocker() as m:
         m.get(
-            "https://192.168.100.1/proxy/network/api/s/default/stat/alarm",
+            "https://test_url/proxy/network/api/s/default/stat/alarm",
             json={"data": [{"src_ip": "8.123.234.234"}]},
         )
         api = main.UnifyAPI()
@@ -64,7 +72,7 @@ def test_add_alarms__non_local_not_ips__correct_list():
 def test_add_alarms__non_local_in_ips__correct_list():
     with requests_mock.Mocker() as m:
         m.get(
-            "https://192.168.100.1/proxy/network/api/s/default/stat/alarm",
+            "https://test_url/proxy/network/api/s/default/stat/alarm",
             json={"data": [{"src_ip": "8.123.234.234"}]},
         )
         api = main.UnifyAPI()
@@ -76,7 +84,7 @@ def test_get_firewall_group__existing__return_value():
     with requests_mock.Mocker() as m:
         api = main.UnifyAPI()
         m.get(
-            "https://192.168.100.1/proxy/network/api/s/default/rest/firewallgroup/",
+            "https://test_url/proxy/network/api/s/default/rest/firewallgroup/",
             json={
                 "data": [
                     {
@@ -108,7 +116,7 @@ def test_get_firewall_group__non_existing__empty_string():
     with requests_mock.Mocker() as m:
         api = main.UnifyAPI()
         m.get(
-            "https://192.168.100.1/proxy/network/api/s/default/rest/firewallgroup/",
+            "https://test_url/proxy/network/api/s/default/rest/firewallgroup/",
             json={
                 "data": [
                     {
@@ -141,7 +149,7 @@ def test_is_connected__try_connected__response(status_code, expected):
     with requests_mock.Mocker() as m:
         api = main.UnifyAPI()
         m.get(
-            "https://192.168.100.1/proxy/network/api/s/default/stat/alarm",
+            "https://test_url/proxy/network/api/s/default/stat/alarm",
             status_code=status_code,
         )
         assert api.is_connected() is expected
@@ -151,7 +159,25 @@ def test_is_connected__try_connected__exception():
     with requests_mock.Mocker() as m:
         api = main.UnifyAPI()
         m.get(
-            "https://192.168.100.1/proxy/network/api/s/default/stat/alarm",
+            "https://test_url/proxy/network/api/s/default/stat/alarm",
             exc=requests.exceptions.ConnectTimeout,
         )
         assert api.is_connected() is False
+
+
+def test_env_variables_loaded():
+    with (
+        mock.patch.dict(os.environ, {}, clear=True),
+        mock.patch("dotenv.load_dotenv") as mock_load_dotenv,
+    ):
+        reload(main)
+        mock_load_dotenv.assert_called_once()
+
+
+def test_env_variables_not_loaded():
+    with (
+        mock.patch.dict(os.environ, {"API_USERNAME": "user", "API_PASSWORD": "pass"}),
+        mock.patch("dotenv.load_dotenv") as mock_load_dotenv,
+    ):
+        reload(main)
+        mock_load_dotenv.assert_not_called()
