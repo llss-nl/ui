@@ -69,6 +69,16 @@ class UnifyAPI:
         self.headers.update({"X-Csrf-Token": response.headers["X-Csrf-Token"]})
         logger.info("Logged in successfully")
 
+    def logout(self) -> None:
+        """Log in to the API."""
+        logger.info("Attempting to log out")
+        self._make_request(
+            method="post",
+            url=f"{BASE_URI}:443/api/auth/logout",
+            request_data=DATA,
+        )
+        logger.info("Logged out successfully")
+
     def firewall_group(
         self,
         method: str,
@@ -178,16 +188,13 @@ def get_firewall_group(api: UnifyAPI, name: str) -> str:
     return ""
 
 
-if __name__ == "__main__":
-    """Start the main section of the application."""
-    logger.info("Starting main process")
-    api = UnifyAPI()
-    api.login()
-    ip_block = get_firewall_group(api, "test")
-
-    current_group = api.firewall_group("get", ip_block)
-    data = current_group.json()["data"][0]
-    ips = data["group_members"]
+def loop_add_alarms(
+    api: UnifyAPI,
+    data: dict[str, Any],
+    ip_block: str,
+    ips: list[str],
+) -> None:  # pragma: no cover
+    """Loop to add alarms to the firewall group."""
     while True:
         if not api.is_connected():
             api.login()
@@ -195,3 +202,24 @@ if __name__ == "__main__":
         data.update({"group_members": sorted(ips)})
         api.firewall_group("put", ip_block, request_data=data)
         time.sleep(60)
+
+
+def main() -> int:
+    """Start the main section of the application."""
+    logger.info("Starting main process")
+    api = UnifyAPI()
+    api.login()
+    ip_block = get_firewall_group(api, "test")
+    current_group = api.firewall_group("get", ip_block)
+    data = current_group.json()["data"][0]
+    ips = data["group_members"]
+    try:
+        loop_add_alarms(api=api, data=data, ip_block=ip_block, ips=ips)
+    except KeyboardInterrupt:
+        logger.info("Exiting main process")
+        api.logout()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
