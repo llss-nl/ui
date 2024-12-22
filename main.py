@@ -1,10 +1,11 @@
 """A script to add IPs from the alarms to the firewall group."""
 
+import asyncio
 import logging
 import os
-import time
 from typing import Any
 
+import nest_asyncio
 import requests
 from dotenv import load_dotenv
 from requests import Response
@@ -22,7 +23,6 @@ requests.packages.urllib3.disable_warnings(InsecureRequestWarning)  # type: igno
 headers = {"Accept": "application/json", "Content-Type": "application/json"}
 DATA = {"username": os.getenv("API_USERNAME"), "password": os.getenv("API_PASSWORD")}
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -188,7 +188,7 @@ def get_firewall_group(api: UnifyAPI, name: str) -> str:
     return ""
 
 
-def loop_add_alarms(
+async def loop_add_alarms(
     api: UnifyAPI,
     data: dict[str, Any],
     ip_block: str,
@@ -201,7 +201,7 @@ def loop_add_alarms(
         ips = add_alarms(api, ips)
         data.update({"group_members": sorted(ips)})
         api.firewall_group("put", ip_block, request_data=data)
-        time.sleep(60)
+        await asyncio.sleep(60)
 
 
 def main() -> int:
@@ -214,7 +214,11 @@ def main() -> int:
     data = current_group.json()["data"][0]
     ips = data["group_members"]
     try:
-        loop_add_alarms(api=api, data=data, ip_block=ip_block, ips=ips)
+        loop = asyncio.get_event_loop()
+        nest_asyncio.apply(loop)
+        loop.run_until_complete(
+            loop_add_alarms(api=api, data=data, ip_block=ip_block, ips=ips),
+        )
     except KeyboardInterrupt:
         logger.info("Exiting main process")
         api.logout()
