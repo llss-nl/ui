@@ -33,7 +33,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            grove825/UI:latest
-            grove825/UI:1.0.0
-            ghcr.io/grove825/UI:latest
-            ghcr.io/grove825/UI:1.0.0
+            mastergrove/ui:latest
+            mastergrove/ui:${{ github.event.release.tag_name }}
+            ghcr.io/grove825/ui:latest
+            ghcr.io/grove825/ui:${{ github.event.release.tag_name }}
