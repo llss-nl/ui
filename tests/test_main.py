@@ -9,8 +9,10 @@ import requests_mock
 import main
 
 
-def fixture_api():
-    return main.UnifyAPI()
+@pytest.fixture(autouse=True)
+def fix_env():
+    with mock.patch.dict(os.environ, {"API_HOST": "test_url"}):
+        reload(main)
 
 
 def test_login():
@@ -51,21 +53,45 @@ def test_add_alarms__local_ip__not_added(src_ip):
     with requests_mock.Mocker() as m:
         m.get(
             "https://test_url/proxy/network/api/s/default/stat/alarm",
-            json={"data": [{"src_ip": src_ip}]},
+            json={"data": [{"src_ip": src_ip, "timestamp": 1}]},
         )
         api = main.UnifyAPI()
-        ips = main.add_alarms(api, [])
+        (ips, prev) = main.add_alarms(api=api, ips=[], prev_time=0)
         assert ips == []
+
+
+def test_add_alarms__prev_gt__append():
+    with requests_mock.Mocker() as m:
+        m.get(
+            "https://test_url/proxy/network/api/s/default/stat/alarm",
+            json={"data": [{"src_ip": "8.123.234.234", "timestamp": 1}]},
+        )
+        api = main.UnifyAPI()
+        ips, prev = main.add_alarms(api, [], prev_time=0)
+        assert ips == ["8.123.234.0/24"]
+        assert prev == 1
+
+
+def test_add_alarms__prev_st__append():
+    with requests_mock.Mocker() as m:
+        m.get(
+            "https://test_url/proxy/network/api/s/default/stat/alarm",
+            json={"data": [{"src_ip": "8.123.234.234", "timestamp": -1}]},
+        )
+        api = main.UnifyAPI()
+        ips, prev = main.add_alarms(api, [], prev_time=0)
+        assert ips == []
+        assert prev == 0
 
 
 def test_add_alarms__non_local_not_ips__correct_list():
     with requests_mock.Mocker() as m:
         m.get(
             "https://test_url/proxy/network/api/s/default/stat/alarm",
-            json={"data": [{"src_ip": "8.123.234.234"}]},
+            json={"data": [{"src_ip": "8.123.234.234", "timestamp": 1}]},
         )
         api = main.UnifyAPI()
-        ips = main.add_alarms(api, [])
+        ips, prev = main.add_alarms(api, [], prev_time=0)
         assert ips == ["8.123.234.0/24"]
 
 
@@ -73,10 +99,10 @@ def test_add_alarms__non_local_in_ips__correct_list():
     with requests_mock.Mocker() as m:
         m.get(
             "https://test_url/proxy/network/api/s/default/stat/alarm",
-            json={"data": [{"src_ip": "8.123.234.234"}]},
+            json={"data": [{"src_ip": "8.123.234.234", "timestamp": 1}]},
         )
         api = main.UnifyAPI()
-        ips = main.add_alarms(api, ["8.123.234.0/24"])
+        ips, prev = main.add_alarms(api, ["8.123.234.0/24"], prev_time=0)
         assert ips == ["8.123.234.0/24"]
 
 
