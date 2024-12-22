@@ -5,7 +5,6 @@ import logging
 import os
 from typing import Any
 
-import nest_asyncio
 import requests
 from dotenv import load_dotenv
 from requests import Response
@@ -216,13 +215,12 @@ def main() -> int:
     logger.info("Starting main process")
     api = UnifyAPI()
     api.login()
+    loop = asyncio.new_event_loop()
     ip_block = get_firewall_group(api, "test")
     current_group = api.firewall_group("get", ip_block)
     data = current_group.json()["data"][0]
     ips = data["group_members"]
     try:
-        loop = asyncio.get_event_loop()
-        nest_asyncio.apply(loop)
         loop.run_until_complete(
             loop_add_alarms(api=api, data=data, ip_block=ip_block, ips=ips),
         )
