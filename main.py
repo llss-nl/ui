@@ -15,7 +15,7 @@ if not os.getenv("API_USERNAME") or not os.getenv("API_PASSWORD"):
     # Load environment variables from .env file
     load_dotenv()
 
-host = os.getenv("API_HOST", "test_url")
+host = os.getenv("API_HOST")
 BASE_URI = f"https://{host}"
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)  # type: ignore [attr-defined]
@@ -142,11 +142,12 @@ class UnifyAPI:
         return response
 
 
-def add_alarms(api: UnifyAPI, ips: list[str]) -> list[str]:
+def add_alarms(api: UnifyAPI, ips: list[str], prev_time: int) -> tuple[list[str], int]:
     """
     Add ip from the alarms to the firewall group.
 
     Args:
+        prev_time: The previous time of the last alarm
         api: The UnifyAPI object
         ips: list of IPs to add to the firewall group
 
@@ -155,17 +156,20 @@ def add_alarms(api: UnifyAPI, ips: list[str]) -> list[str]:
 
     """
     alarms = api.alarm()
-    for alarm in alarms.json()["data"]:
-        if "src_ip" in alarm and not (
-            alarm["src_ip"].startswith("192.168") or alarm["src_ip"] == "10.0.0.125"
-        ):
-            spl = alarm["src_ip"].split(".")
-            ip = f"{spl[0]}.{spl[1]}.{spl[2]}.0/24"
-            if ip not in ips:
-                ips.append(ip)
-                msg = f"Added IP: {ip}"
-                logger.info(msg)
-    return ips
+    last_alarm = alarms.json()["data"][0]["timestamp"]
+    if last_alarm > prev_time:
+        for alarm in alarms.json()["data"]:
+            if "src_ip" in alarm and not (
+                alarm["src_ip"].startswith("192.168") or alarm["src_ip"] == "10.0.0.125"
+            ):
+                spl = alarm["src_ip"].split(".")
+                ip = f"{spl[0]}.{spl[1]}.{spl[2]}.0/24"
+                if ip not in ips:
+                    ips.append(ip)
+                    msg = f"Added IP: {ip}"
+                    logger.info(msg)
+        prev_time = last_alarm
+    return ips, prev_time
 
 
 def get_firewall_group(api: UnifyAPI, name: str) -> str:
@@ -195,12 +199,15 @@ async def loop_add_alarms(
     ips: list[str],
 ) -> None:  # pragma: no cover
     """Loop to add alarms to the firewall group."""
+    prev_timestamp = 0
     while True:
         if not api.is_connected():
             api.login()
-        ips = add_alarms(api, ips)
-        data.update({"group_members": sorted(ips)})
-        api.firewall_group("put", ip_block, request_data=data)
+        alarm_ips, prev_timestamp = add_alarms(api, ips, prev_timestamp)
+        if alarm_ips != ips:
+            data.update({"group_members": sorted(ips)})
+            api.firewall_group("put", ip_block, request_data=data)
+            ips = alarm_ips
         await asyncio.sleep(60)
 
 
@@ -225,5 +232,5 @@ def main() -> int:
     return 0
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(main())
