@@ -16,6 +16,8 @@ if not os.getenv("API_USERNAME") or not os.getenv("API_PASSWORD"):
 
 host = os.getenv("API_HOST")
 BASE_URI = f"https://{host}"
+ignore = os.getenv("API_IGNORE")
+ignored_ips = ignore.split(",") if ignore else []
 
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)  # type: ignore [attr-defined]
 
@@ -159,7 +161,7 @@ def add_alarms(api: UnifyAPI, ips: list[str], prev_time: int) -> tuple[list[str]
     if last_alarm > prev_time:
         for alarm in alarms.json()["data"]:
             if "src_ip" in alarm and not (
-                alarm["src_ip"].startswith("192.168") or alarm["src_ip"] == "10.0.0.125"
+                alarm["src_ip"].startswith("192.168") or alarm["src_ip"] in ignored_ips
             ):
                 spl = alarm["src_ip"].split(".")
                 ip = f"{spl[0]}.{spl[1]}.{spl[2]}.0/24"

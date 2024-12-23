@@ -11,7 +11,10 @@ import main
 
 @pytest.fixture(autouse=True)
 def fix_env():
-    with mock.patch.dict(os.environ, {"API_HOST": "test_url"}):
+    with mock.patch.dict(
+        os.environ,
+        {"API_HOST": "test_url", "API_IGNORE": "ingoing, outgoing"},
+    ):
         reload(main)
 
 
@@ -48,7 +51,7 @@ def test_alarm():
         assert response.json() == {"data": []}
 
 
-@pytest.mark.parametrize("src_ip", ["192.168.1.1", "10.0.0.125"])
+@pytest.mark.parametrize("src_ip", ["192.168.1.1", "ingoing"])
 def test_add_alarms__local_ip__not_added(src_ip):
     with requests_mock.Mocker() as m:
         m.get(
