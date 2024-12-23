@@ -26,8 +26,7 @@ jobs:
       - name: Set Branch Name
         id: set-branch-name
         run: |
-          branch_name=$(printf "issue-%s %s" "${{ github.event.issue.number }}" "${{ github.event.issue.title }}" | tr '[:upper:]' '[:lower:]' | tr ' ' '${{ env.gitSafeReplacementChar }}')
-          echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
+          branch_name=$(echo "issue-${{ github.event.issue.number }} ${{ github.event.issue.title }}" | tr '[:upper:]' '[:lower:]' | tr ' ' '${{ env.gitSafeReplacementChar }}' | sed 's/[^a-zA-Z0-9]/${{ env.gitSafeReplacementChar }}/g')          echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
       - name: Fetch Development Branch
         run: |
           git fetch origin ${{ env.defaultBranch }}
