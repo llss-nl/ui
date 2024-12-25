@@ -156,6 +156,7 @@ def add_alarms(api: UnifyAPI, ips: list[str], prev_time: int) -> tuple[list[str]
         list: The updated list of IPs
 
     """
+    new_ips = ips.copy()
     alarms = api.alarm()
     last_alarm = alarms.json()["data"][0]["timestamp"]
     if last_alarm > prev_time:
@@ -165,12 +166,12 @@ def add_alarms(api: UnifyAPI, ips: list[str], prev_time: int) -> tuple[list[str]
             ):
                 spl = alarm["src_ip"].split(".")
                 ip = f"{spl[0]}.{spl[1]}.{spl[2]}.0/24"
-                if ip not in ips:
-                    ips.append(ip)
+                if ip not in new_ips:
+                    new_ips.append(ip)
                     msg = f"Added IP: {ip}"
                     logger.info(msg)
         prev_time = last_alarm
-    return ips, prev_time
+    return new_ips, prev_time
 
 
 def get_firewall_group(api: UnifyAPI, name: str) -> str:
@@ -193,23 +194,66 @@ def get_firewall_group(api: UnifyAPI, name: str) -> str:
     return ""
 
 
-async def loop_add_alarms(
-    api: UnifyAPI,
-    data: dict[str, Any],
-    ip_block: str,
-    ips: list[str],
-) -> None:  # pragma: no cover
-    """Loop to add alarms to the firewall group."""
+async def loop_check(api: UnifyAPI) -> None:  # pragma: no cover
+    """
+    Loop checks.
+
+    Args:
+        api: The UnifyAPI object
+
+    """
     prev_timestamp = 0
+    data, group_id = await get_own_blocks(api)
+
     while True:
         if not api.is_connected():
             api.login()
-        alarm_ips, prev_timestamp = add_alarms(api, ips, prev_timestamp)
-        if alarm_ips != ips:
-            data.update({"group_members": sorted(ips)})
-            api.firewall_group("put", ip_block, request_data=data)
-            ips = alarm_ips
-        await asyncio.sleep(60)
+        data = await loop_add_alarms(api, data, group_id, prev_timestamp)
+
+
+async def get_own_blocks(api: UnifyAPI) -> tuple[dict[str, Any], str]:
+    """
+    Get the existing firewall group.
+
+    Args:
+        api: The UnifyAPI object
+
+    Returns:
+        tuple: The data and group ID
+
+    """
+    group_id = get_firewall_group(api, "test")
+    current_group = api.firewall_group("get", group_id)
+    data = current_group.json()["data"][0]
+    return data, group_id
+
+
+async def loop_add_alarms(
+    api: UnifyAPI,
+    data: dict[str, Any],
+    group_id: str,
+    prev_timestamp: int,
+) -> dict[str, Any]:
+    """
+    Loop through the alarms and add them to the firewall group.
+
+    Args:
+        api: The UnifyAPI object
+        data: The existing data
+        group_id: The id of the group
+        prev_timestamp: The timestamp of the last added alarm
+
+    Returns:
+        The data with the updated IPs
+
+    """
+    ips = data["group_members"]
+    alarm_ips, prev_timestamp = add_alarms(api, ips, prev_timestamp)
+    if alarm_ips != ips:
+        data.update({"group_members": sorted(alarm_ips)})
+        api.firewall_group("put", group_id, request_data=data)
+    await asyncio.sleep(60)
+    return data
 
 
 def main() -> int:
@@ -218,14 +262,9 @@ def main() -> int:
     api = UnifyAPI()
     api.login()
     loop = asyncio.new_event_loop()
-    ip_block = get_firewall_group(api, "test")
-    current_group = api.firewall_group("get", ip_block)
-    data = current_group.json()["data"][0]
-    ips = data["group_members"]
+
     try:
-        loop.run_until_complete(
-            loop_add_alarms(api=api, data=data, ip_block=ip_block, ips=ips),
-        )
+        loop.run_until_complete(loop_check(api=api))
     except KeyboardInterrupt:
         logger.info("Exiting main process")
         api.logout()
