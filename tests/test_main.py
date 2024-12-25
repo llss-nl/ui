@@ -212,18 +212,6 @@ def test_env_variables_not_loaded():
         mock_load_dotenv.assert_not_called()
 
 
-def test_main():
-    with (
-        mock.patch("main.UnifyAPI") as mock_api,
-        mock.patch("main.loop_add_alarms") as mock_loop_add_alarms,
-    ):
-        main.main()
-        mock_api.assert_called_once()
-        mock_api.return_value.login.assert_called_once()
-        mock_api.return_value.firewall_group.assert_called()
-        mock_loop_add_alarms.assert_called()
-
-
 def test_main__raise_keyboard_interrupt__logout():
     with (
         mock.patch("main.UnifyAPI") as mock_api,
@@ -242,3 +230,63 @@ def test_logout():
             status_code=200,
         )
         api.logout()
+
+
+@pytest.mark.asyncio
+async def test_loop_add_alarms__new_ips_added():
+
+    with mock.patch.object(main.asyncio, "sleep"), requests_mock.Mocker() as m:
+        m.get(
+            "https://test_url/proxy/network/api/s/default/stat/alarm",
+            json={"data": [{"src_ip": "8.123.234.234", "timestamp": 1}]},
+        )
+        m.put(
+            "https://test_url/proxy/network/api/s/default/rest/firewallgroup/test_id",
+            json={"data": []},
+        )
+        api = main.UnifyAPI()
+        data = {"group_members": []}
+        ip_block = "test_id"
+        prev_timestamp = 0
+
+        updated_data = await main.loop_add_alarms(api, data, ip_block, prev_timestamp)
+        assert updated_data == {"group_members": ["8.123.234.0/24"]}
+
+
+@pytest.mark.asyncio
+async def test_loop_add_alarms__no_new_ips():
+    with mock.patch.object(main.asyncio, "sleep"), requests_mock.Mocker() as m:
+        m.get(
+            "https://test_url/proxy/network/api/s/default/stat/alarm",
+            json={"data": [{"src_ip": "8.123.234.234", "timestamp": -1}]},
+        )
+        api = main.UnifyAPI()
+        data = {"group_members": []}
+        ip_block = "test_id"
+        prev_timestamp = 0
+
+        updated_data = await main.loop_add_alarms(api, data, ip_block, prev_timestamp)
+        assert updated_data == {"group_members": []}
+
+
+@pytest.mark.asyncio
+async def test_loop_add_alarms__existing_ips():
+    with mock.patch.object(main.asyncio, "sleep"), requests_mock.Mocker() as m:
+        m.get(
+            "https://test_url/proxy/network/api/s/default/stat/alarm",
+            json={"data": [{"src_ip": "8.4.234.234", "timestamp": 1}]},
+        )
+        m.put(
+            "https://test_url/proxy/network/api/s/default/rest/firewallgroup/test_id",
+            json={"group_members": ["8.123.234.0/24", "8.4.234.0/24"]},
+        )
+        api = main.UnifyAPI()
+        data = {"group_members": ["8.123.234.0/24"]}
+        ip_block = "test_id"
+        prev_timestamp = 0
+
+        updated_data = await main.loop_add_alarms(api, data, ip_block, prev_timestamp)
+        assert updated_data == {"group_members": ["8.123.234.0/24", "8.4.234.0/24"]}
+        assert m.last_request.json() == {
+            "group_members": ["8.123.234.0/24", "8.4.234.0/24"],
+        }
