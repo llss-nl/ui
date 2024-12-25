@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import os
+from collections import defaultdict
 from typing import Any
 
 import requests
@@ -256,11 +257,48 @@ async def loop_add_alarms(
     return data
 
 
+def add_ci_bad_guys(api: UnifyAPI) -> None:
+    """
+    Add the CI bad guys to the firewall.
+
+    Args:
+        api: The UnifyAPI object
+
+    """
+    values = requests.get(
+        "https://cinsscore.com/list/ci-badguys.txt",
+        timeout=1,
+    ).text
+    ips = list(values.split("\n"))
+    groups = defaultdict(set)
+    for i in ips:
+        if i:
+            spl = i.split(".", 1)[0]
+            groups[spl].add(i)
+    for group, grp_ips in groups.items():
+        grp_id = get_firewall_group(api, f"abg_{group}")
+        grp_data = api.firewall_group("get", grp_id)
+        if grp_data:
+            data = grp_data.json()["data"][0]
+            data.update({"group_members": sorted(grp_ips)})
+            api.firewall_group("put", grp_id, request_data=data)
+        else:
+            data = {
+                "name": f"abg_{group}",
+                "group_members": sorted(grp_ips),
+                "group_type": "address-group",
+            }
+            api.firewall_group("post", request_data=data)
+
+
 def main() -> int:
     """Start the main section of the application."""
     logger.info("Starting main process")
     api = UnifyAPI()
     api.login()
+
+    add_ci_bad_guys(api)
+
     loop = asyncio.new_event_loop()
 
     try:
