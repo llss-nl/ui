@@ -7,7 +7,7 @@ on:
 jobs:
   docker:
     permissions:
-      packages: read
+      packages: write
     runs-on: ubuntu-latest
     steps:
       - name: Login to Docker Hub
