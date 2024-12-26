@@ -17,7 +17,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
       - name: Set YAML Outputs
-        uses: actions-tools/yaml-outputs@v2
+        uses: actions-tools/yaml-outputs@8a3d95c649e970fbe0fb68b11e21a64a9b7bb1b0 #v2.1
         id: yaml
         with:
           file-path: '.github/issue-config.yml'
@@ -68,7 +68,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
       - name: Set YAML Outputs
-        uses: actions-tools/yaml-outputs@v2
+        uses: actions-tools/yaml-outputs@8a3d95c649e970fbe0fb68b11e21a64a9b7bb1b0 #v2.1
         id: yaml
         with:
           file-path: '.github/issue-config.yml'
