@@ -11,10 +11,6 @@ jobs:
     if: contains(github.event.comment.body, '/CIB') || github.event.action == 'assigned'
     runs-on: ubuntu-latest
     steps:
-      - env:
-          TITLE: ${{ github.event.issue.title }}
-        run: |
-          echo "TITLE"
       - name: Checkout Repository
         uses: actions/checkout@v4
       - name: Set YAML Outputs
@@ -29,8 +25,10 @@ jobs:
             echo "gitSafeReplacementChar=${{ steps.yaml.outputs.gitSafeReplacementChar }}" >> $GITHUB_ENV
       - name: Set Branch Name
         id: set-branch-name
+        env:
+          TITLE: ${{ github.event.issue.title }}
         run: |
-          branch_name=$(echo "issue-${{ github.event.issue.number }} ${{ env.TITLE }}" | tr '[:upper:]' '[:lower:]' | tr ' ' '${{ env.gitSafeReplacementChar }}' | sed 's/[^a-zA-Z0-9-]/${{ env.gitSafeReplacementChar }}/g')
+          branch_name=$(echo "issue-${{ github.event.issue.number }} $TITLE" | tr '[:upper:]' '[:lower:]' | tr ' ' '${{ env.gitSafeReplacementChar }}' | sed 's/[^a-zA-Z0-9-]/${{ env.gitSafeReplacementChar }}/g')
           echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
       - name: Fetch Development Branch
         run: |
