@@ -10,7 +10,7 @@ jobs:
   create-branch:
     permissions:
       issues: write
-      contents: read
+      contents: write
     if: contains(github.event.comment.body, '/CIB') || github.event.action == 'assigned'
     runs-on: ubuntu-latest
     steps:
