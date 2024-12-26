@@ -8,6 +8,8 @@ on:
     types: [closed]
 jobs:
   create-branch:
+    permissions:
+      issues: write
     if: contains(github.event.comment.body, '/CIB') || github.event.action == 'assigned'
     runs-on: ubuntu-latest
     steps:
@@ -57,6 +59,8 @@ jobs:
                $repo_url/issues/$issue_number/comments \
                -d '{"body": "Branch created: ['$branch_name']('$branch_url')"}'
   close-issue:
+    permissions:
+      issues: write
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
