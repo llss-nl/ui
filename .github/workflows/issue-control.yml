@@ -39,16 +39,17 @@ jobs:
       - name: Create Branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: ${{ steps.set-branch-name.outputs.branch_name }}
         run: |
-          branch_name=${{ steps.set-branch-name.outputs.branch_name }}
-          git checkout -b $branch_name
-          git push --set-upstream origin $branch_name
+          git checkout -b $BRANCH_NAME
+          git push --set-upstream origin $BRANCH_NAME
       - name: Add Comment to Issue
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_NAME: ${{ steps.set-branch-name.outputs.branch_name }}
         run: |
           issue_number=${{ github.event.issue.number }}
-          branch_name=${{ steps.set-branch-name.outputs.branch_name }}
+          branch_name=$BRANCH_NAME
           repo_url=https://api.github.com/repos/${{ github.repository }}
           branch_url=https://github.com/${{ github.repository }}/tree/$branch_name
           curl -X POST -H "Authorization: Bearer $GITHUB_TOKEN" \
