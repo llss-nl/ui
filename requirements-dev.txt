@@ -1,9 +1,11 @@
 -r requirements.txt
+black
 build
 coverage[toml]
 mypy
 pre-commit
 pytest
+pytest-asyncio
 requests-mock
 ruff
 twine

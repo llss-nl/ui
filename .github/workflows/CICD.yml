@@ -57,7 +57,7 @@ jobs:
     needs: setup
     strategy:
       matrix:
-        linter: [ruff-format, ruff, mypy, check-json, codespell]
+        linter: [ruff, mypy, check-json, codespell, black]
     steps:
       - name: Check out code from GitHub
         uses: actions/checkout@v4.2.2
@@ -108,7 +108,7 @@ jobs:
         run: |
           . venv/bin/activate
           python --version
-          python -m coverage run -m pytest --junitxml=pytest-results.xml
+          python -m coverage run --branch -m pytest --junitxml=pytest-results.xml
           coverage xml -o coverage.xml
           python -m coverage report --fail-under=100
       - name: Upload coverage artifact
