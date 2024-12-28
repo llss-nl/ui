@@ -511,7 +511,7 @@ async def test_main(httpx_mock):
     )
     with (
         mock.patch("main.UnifyAPI.login", return_value=mock.AsyncMock()),
-        mock.patch("main.add_ci_bad_guys", return_value=mock.AsyncMock()),
+        mock.patch("main.loop_ci_bad_guys", return_value=mock.AsyncMock()),
         mock.patch("main.loop_check", return_value=mock.AsyncMock()),
         mock.patch("asyncio.gather", side_effect=KeyboardInterrupt),
     ):
