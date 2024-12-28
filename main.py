@@ -3,12 +3,12 @@
 import asyncio
 import logging
 import os
+from collections import defaultdict
+from types import TracebackType
 from typing import Any
 
-import requests
+import httpx
 from dotenv import load_dotenv
-from requests import Response
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
 
 if not os.getenv("API_USERNAME") or not os.getenv("API_PASSWORD"):
     # Load environment variables from .env file
@@ -18,8 +18,6 @@ host = os.getenv("API_HOST")
 BASE_URI = f"https://{host}"
 ignore = os.getenv("API_IGNORE")
 ignored_ips = ignore.split(",") if ignore else []
-
-requests.packages.urllib3.disable_warnings(InsecureRequestWarning)  # type: ignore [attr-defined]
 
 headers = {"Accept": "application/json", "Content-Type": "application/json"}
 DATA = {"username": os.getenv("API_USERNAME"), "password": os.getenv("API_PASSWORD")}
@@ -40,59 +38,61 @@ class UnifyAPI:
             "Accept": "application/json",
             "Content-Type": "application/json",
         }
-        self.session = requests.Session()
+        self.client = httpx.AsyncClient(verify=False)  # noqa: S501
         logger.info("UnifyAPI session started")
 
-    def __del__(self) -> None:
-        """Close the session when the object is deleted."""
-        self.session.close()
+    async def __aexit__(  # pragma: no cover
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_val: BaseException | None = None,
+        exc_tb: TracebackType | None = None,
+    ) -> None:
+        """
+        Close the connection to the API.
+
+        Args:
+            exc_type: The exception type
+            exc_val: The exception value
+            exc_tb: The exception traceback
+
+        """
+        await self.client.aclose()
         logger.info("UnifyAPI session closed")
 
-    def is_connected(self) -> bool:
-        """Check if the connection is still available."""
-        try:
-            response = self.alarm()
-        except requests.RequestException as e:
-            msg = f"Connection check failed: {e}"
-            logger.exception(msg)
-            return False
-        else:
-            return response.status_code == requests.codes.ok
-
-    def login(self) -> None:
+    async def login(self) -> None:
         """Log in to the API."""
         logger.info("Attempting to log in")
-        response = self._make_request(
+        response = await self._make_request(
             method="post",
             url=f"{BASE_URI}:443/api/auth/login",
-            request_data=DATA,
+            params=DATA,
         )
         self.headers.update({"X-Csrf-Token": response.headers["X-Csrf-Token"]})
         logger.info("Logged in successfully")
 
-    def logout(self) -> None:
-        """Log in to the API."""
+    async def logout(self) -> None:
+        """Log out of the API."""
         logger.info("Attempting to log out")
-        self._make_request(
+        await self._make_request(
             method="post",
             url=f"{BASE_URI}:443/api/auth/logout",
-            request_data=DATA,
+            params=DATA,
         )
         logger.info("Logged out successfully")
 
-    def firewall_group(
+    async def firewall_group(
         self,
         method: str,
         group_id: str | None = None,
-        request_data: dict[str, Any] | None = None,
-    ) -> Response:
+        params: dict[str, Any] | None = None,
+    ) -> httpx.Response:
         """
         Get or update the firewall group.
 
         Args:
             method: The method to use
             group_id: The group ID
-            request_data: The data to send
+            params: The data to send
 
         Returns:
             Response: The response from the API
@@ -101,14 +101,40 @@ class UnifyAPI:
         if group_id is None:
             group_id = ""
         url = f"{BASE_URI}/proxy/network/api/s/default/rest/firewallgroup/{group_id}"
-        return self._make_request(
+        return await self._make_request(
             method=method,
             url=url,
-            request_data=request_data,
-            timeout=20,
+            params=params,
         )
 
-    def alarm(self) -> Response:
+    async def firewall_rule(
+        self,
+        method: str,
+        group_id: str | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> httpx.Response:
+        """
+        Get or update the firewall rule.
+
+        Args:
+            method: The method to use
+            group_id: The group ID
+            params: The data to send
+
+        Returns:
+            Response: The response from the API
+
+        """
+        if group_id is None:
+            group_id = ""
+        url = f"{BASE_URI}/proxy/network/api/s/default/rest/firewallrule/{group_id}"
+        return await self._make_request(
+            method=method,
+            url=url,
+            params=params,
+        )
+
+    async def alarm(self) -> httpx.Response:
         """
         Get the alarms.
 
@@ -117,35 +143,39 @@ class UnifyAPI:
 
         """
         url = f"{BASE_URI}/proxy/network/api/s/default/stat/alarm"
-        return self._make_request(
+        return await self._make_request(
             method="get",
             url=url,
         )
 
-    def _make_request(
+    async def _make_request(
         self,
         method: str,
         url: str,
-        request_data: dict[str, Any] | None = None,
-        timeout: int = 1,
-    ) -> Response:
-        msg = f"Making {method} request to {url} with data {request_data}"
+        params: dict[str, Any] | None = None,
+    ) -> httpx.Response:
+        msg = f"Making {method} request to {url} with data {params}"
         logger.debug(msg)
-        response = getattr(self.session, method)(
+        param = {}
+        if params:
+            param = {"json": params}
+        response = await getattr(self.client, method)(
             url,
             headers=self.headers,
-            json=request_data,
-            verify=False,
-            timeout=timeout,
+            **param,
         )
         msg = f"Received response: {response.status_code}"
         logger.debug(msg)
         return response
 
 
-def add_alarms(api: UnifyAPI, ips: list[str], prev_time: int) -> tuple[list[str], int]:
+async def add_alarms(
+    api: UnifyAPI,
+    ips: list[str],
+    prev_time: int,
+) -> tuple[list[str], int]:
     """
-    Add ip from the alarms to the firewall group.
+    Add IPs from the alarms to the firewall group.
 
     Args:
         prev_time: The previous time of the last alarm
@@ -156,9 +186,13 @@ def add_alarms(api: UnifyAPI, ips: list[str], prev_time: int) -> tuple[list[str]
         list: The updated list of IPs
 
     """
+    last_alarm = 0
     new_ips = ips.copy()
-    alarms = api.alarm()
-    last_alarm = alarms.json()["data"][0]["timestamp"]
+    alarms = await api.alarm()
+    for i in alarms.json()["data"]:
+        if "timestamp" in i:
+            last_alarm = i["timestamp"]
+            break
     if last_alarm > prev_time:
         for alarm in alarms.json()["data"]:
             if "src_ip" in alarm and not (
@@ -174,7 +208,7 @@ def add_alarms(api: UnifyAPI, ips: list[str], prev_time: int) -> tuple[list[str]
     return new_ips, prev_time
 
 
-def get_firewall_group(api: UnifyAPI, name: str) -> str:
+async def get_firewall_group(api: UnifyAPI, name: str) -> str:
     """
     Get the firewall group.
 
@@ -186,7 +220,7 @@ def get_firewall_group(api: UnifyAPI, name: str) -> str:
         str: The firewall group ID
 
     """
-    response = api.firewall_group("get")
+    response = await api.firewall_group("get")
     response_json = response.json()["data"]
     for group in response_json:
         if group["name"] == name:
@@ -206,9 +240,8 @@ async def loop_check(api: UnifyAPI) -> None:  # pragma: no cover
     data, group_id = await get_own_blocks(api)
 
     while True:
-        if not api.is_connected():
-            api.login()
         data = await loop_add_alarms(api, data, group_id, prev_timestamp)
+        await asyncio.sleep(60)
 
 
 async def get_own_blocks(api: UnifyAPI) -> tuple[dict[str, Any], str]:
@@ -222,8 +255,8 @@ async def get_own_blocks(api: UnifyAPI) -> tuple[dict[str, Any], str]:
         tuple: The data and group ID
 
     """
-    group_id = get_firewall_group(api, "test")
-    current_group = api.firewall_group("get", group_id)
+    group_id = await get_firewall_group(api, "test")
+    current_group = await api.firewall_group("get", group_id)
     data = current_group.json()["data"][0]
     return data, group_id
 
@@ -248,28 +281,134 @@ async def loop_add_alarms(
 
     """
     ips = data["group_members"]
-    alarm_ips, prev_timestamp = add_alarms(api, ips, prev_timestamp)
+    alarm_ips, prev_timestamp = await add_alarms(api, ips, prev_timestamp)
     if alarm_ips != ips:
         data.update({"group_members": sorted(alarm_ips)})
-        api.firewall_group("put", group_id, request_data=data)
-    await asyncio.sleep(60)
+        await api.firewall_group("put", group_id, params=data)
     return data
 
 
-def main() -> int:
+async def add_firewall_rule(
+    api: UnifyAPI,
+    firewall_rules: dict[str, Any],
+    ids: str,
+    number: str,
+) -> None:
+    """
+    Add the CI bad guys to the firewall.
+
+    Args:
+        firewall_rules: The existing firewall rules
+        ids: The group id
+        number: The number of the group
+        api: The UnifyAPI object
+
+    """
+    for firewall_rule in firewall_rules["data"]:
+        if firewall_rule["name"] == f"abg_{number}":
+            return
+    index = 20000 + int(number)
+    params = {
+        "action": "drop",
+        "enabled": True,
+        "dst_address": "",
+        "dst_firewallgroup_ids": [],
+        "dst_networkconf_type": "NETv4",
+        "icmp_typename": "",
+        "ipsec": "",
+        "logging": False,
+        "name": f"abg_{number}",
+        "protocol": "all",
+        "protocol_match_excepted": False,
+        "ruleset": "WAN_IN",
+        "rule_index": index,
+        "dst_networkconf_id": "",
+        "dst_port": "",
+        "setting_preference": "auto",
+        "src_address": "",
+        "src_firewallgroup_ids": [ids],
+        "src_mac_address": "",
+        "src_networkconf_id": "",
+        "src_networkconf_type": "NETv4",
+        "src_port": "",
+        "state_established": False,
+        "state_invalid": False,
+        "state_new": False,
+        "state_related": False,
+    }
+    await api.firewall_rule("post", params=params)
+
+
+async def loop_ci_bad_guys(api: UnifyAPI) -> None:  # pragma: no cover
+    """
+    Add the CI bad guys to the firewall.
+
+    Args:
+        api: The UnifyAPI object
+
+    """
+    while True:
+        await bad_guys(api)
+        await asyncio.sleep(3600)
+
+
+async def bad_guys(api: UnifyAPI) -> None:
+    """
+    Get and add the bad guys.
+
+    Args:
+        api: The UnifyAPI object
+
+    """
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            "https://cinsscore.com/list/ci-badguys.txt",
+            timeout=20,
+        )
+        values = response.text
+    firewall_rules = await api.firewall_rule("get")
+    firewall_rules = firewall_rules.json()
+    ips = list(values.split("\n"))
+    groups = defaultdict(set)
+    for i in ips:
+        if i:
+            spl = i.split(".", 1)[0]
+            groups[spl].add(i)
+    for group, grp_ips in groups.items():
+        grp_id = await get_firewall_group(api, f"abg_{group}")
+        if grp_id:
+            grp_data = await api.firewall_group("get", grp_id)
+            data = grp_data.json()["data"][0]
+            new_ips = set(data["group_members"])
+            new_ips.update(grp_ips)
+            data.update({"group_members": sorted(new_ips)})
+            await api.firewall_group("put", grp_id, params=data)
+        else:
+            params = {
+                "name": f"abg_{group}",
+                "group_members": sorted(grp_ips),
+                "group_type": "address-group",
+            }
+            response = await api.firewall_group("post", params=params)
+            grp_id = response.json()["data"][0]["_id"]
+        await add_firewall_rule(api, firewall_rules, grp_id, group)
+
+
+async def main() -> int:
     """Start the main section of the application."""
     logger.info("Starting main process")
     api = UnifyAPI()
-    api.login()
-    loop = asyncio.new_event_loop()
+    await api.login()
 
+    task1 = asyncio.create_task(loop_ci_bad_guys(api=api))
+    task2 = asyncio.create_task(loop_check(api=api))
     try:
-        loop.run_until_complete(loop_check(api=api))
+        await asyncio.gather(task1, task2)
     except KeyboardInterrupt:
         logger.info("Exiting main process")
-        api.logout()
+        await api.logout()
     return 0
 
 
 if __name__ == "__main__":  # pragma: no cover
-    raise SystemExit(main())
+    raise SystemExit(asyncio.run(main()))
