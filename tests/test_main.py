@@ -2,6 +2,7 @@ import os
 from importlib import reload
 from unittest import mock
 
+import httpx
 import pytest
 
 import main
@@ -205,7 +206,12 @@ def test_env_variables_not_loaded():
 @pytest.mark.asyncio
 async def test_loop_add_alarms__new_ips_added(httpx_mock, api):
     httpx_mock.add_response(
-        json={"data": [{"src_ip": "8.123.234.234", "timestamp": 1}]},
+        json={
+            "data": [
+                {"src_ip": "8.123.234.234"},
+                {"src_ip": "8.123.234.234", "timestamp": 1},
+            ],
+        },
         is_reusable=True,
     )
     data = {"group_members": []}
@@ -215,6 +221,21 @@ async def test_loop_add_alarms__new_ips_added(httpx_mock, api):
     updated_data = await main.loop_add_alarms(api, data, ip_block, prev_timestamp)
 
     assert updated_data == {"group_members": ["8.123.234.0/24"]}
+
+
+@pytest.mark.asyncio
+async def test_loop_add_alarms__no_data__no_ips_added(httpx_mock, api):
+    httpx_mock.add_response(
+        json={"data": []},
+        is_reusable=True,
+    )
+    data = {"group_members": []}
+    ip_block = "test_id"
+    prev_timestamp = 0
+
+    updated_data = await main.loop_add_alarms(api, data, ip_block, prev_timestamp)
+
+    assert updated_data == {"group_members": []}
 
 
 @pytest.mark.asyncio
@@ -567,3 +588,13 @@ async def test_get_own_blocks(httpx_mock, api):
         "name": "test",
         "site_id": "662c3e002beda211f14d7407",
     }
+
+
+@pytest.mark.asyncio
+async def test_firewall_rule____(httpx_mock, api):
+    httpx_mock.add_response(
+        method="GET",
+        url="https://test_url/proxy/network/api/s/default/rest/firewallrule/group_id",
+    )
+    response = await api.firewall_rule("get", "group_id")
+    assert response.status_code == httpx.codes.OK
