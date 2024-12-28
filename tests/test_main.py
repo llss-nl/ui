@@ -102,7 +102,7 @@ async def test_add_alarms__non_local_not_ips__correct_list(httpx_mock, api):
         json={"data": [{"src_ip": "8.123.234.234", "timestamp": 1}]},
     )
 
-    ips, prev = await main.add_alarms(api, [], prev_time=0)
+    ips, _prev = await main.add_alarms(api, [], prev_time=0)
     assert ips == ["8.123.234.0/24"]
 
 
@@ -114,7 +114,7 @@ async def test_add_alarms__non_local_in_ips__correct_list(httpx_mock, api):
         json={"data": [{"src_ip": "8.123.234.234", "timestamp": 1}]},
     )
 
-    ips, prev = await main.add_alarms(api, ["8.123.234.0/24"], prev_time=0)
+    ips, _prev = await main.add_alarms(api, ["8.123.234.0/24"], prev_time=0)
     assert ips == ["8.123.234.0/24"]
 
 
