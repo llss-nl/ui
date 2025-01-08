@@ -2,10 +2,9 @@ import os
 from importlib import reload
 from unittest import mock
 
-import httpx
 import pytest
 
-import main
+from firewall_block import main, udm_pro_api
 
 
 @pytest.fixture(autouse=True)
@@ -15,47 +14,7 @@ def fix_env():
         {"API_HOST": "test_url", "API_IGNORE": "ingoing, outgoing"},
     ):
         reload(main)
-
-
-@pytest.mark.asyncio
-async def test_login(httpx_mock, api):
-    httpx_mock.add_response(
-        method="POST",
-        url="https://test_url:443/api/auth/login",
-        headers={"X-Csrf-Token": "test_token"},
-    )
-
-    await api.login()
-    assert api.headers["X-Csrf-Token"] == "test_token"
-
-
-@pytest.fixture(name="api")
-def fixture_api():
-    return main.UnifyAPI()
-
-
-@pytest.mark.asyncio
-async def test_firewall_group(httpx_mock, api):
-    httpx_mock.add_response(
-        method="GET",
-        url="https://test_url/proxy/network/api/s/default/rest/firewallgroup/662fa7f339ff5e79202dd1bd",
-        json={"data": []},
-    )
-
-    response = await api.firewall_group("get", "662fa7f339ff5e79202dd1bd")
-    assert response.json() == {"data": []}
-
-
-@pytest.mark.asyncio
-async def test_alarm(httpx_mock, api):
-    httpx_mock.add_response(
-        method="GET",
-        url="https://test_url/proxy/network/api/s/default/stat/alarm",
-        json={"data": []},
-    )
-
-    response = await api.alarm()
-    assert response.json() == {"data": []}
+        reload(udm_pro_api)
 
 
 @pytest.mark.parametrize("src_ip", ["192.168.1.1", "ingoing"])
@@ -183,15 +142,6 @@ async def test_get_firewall_group__non_existing__empty_string(httpx_mock, api):
     group_id = await main.get_firewall_group(api, "test2")
 
     assert group_id == ""
-
-
-def test_env_variables_loaded():
-    with (
-        mock.patch.dict(os.environ, {}, clear=True),
-        mock.patch("dotenv.load_dotenv") as mock_load_dotenv,
-    ):
-        reload(main)
-        mock_load_dotenv.assert_called_once()
 
 
 def test_env_variables_not_loaded():
@@ -525,22 +475,21 @@ async def test_bad_guys__no_new_ips(httpx_mock, api):
 
 
 @pytest.mark.asyncio
-async def test_main(httpx_mock):
-    httpx_mock.add_response(
-        method="POST",
-        url="https://test_url:443/api/auth/logout",
-    )
+async def test_main():
+
     with (
-        mock.patch("main.UnifyAPI.login", return_value=mock.AsyncMock()),
-        mock.patch("main.loop_ci_bad_guys", return_value=mock.AsyncMock()),
-        mock.patch("main.loop_check", return_value=mock.AsyncMock()),
+        mock.patch.object(main.UnifyAPI, "login", return_value=mock.AsyncMock()),
+        mock.patch.object(
+            main.UnifyAPI,
+            "logout",
+            return_value=mock.AsyncMock(),
+        ) as logout,
+        mock.patch.object(main, "loop_ci_bad_guys", return_value=mock.AsyncMock()),
         mock.patch("asyncio.gather", side_effect=KeyboardInterrupt),
     ):
-        await main.main()
+        await main.run()
 
-    requests = httpx_mock.get_requests()
-
-    assert requests[0].url == "https://test_url:443/api/auth/logout"
+    logout.assert_called()
 
 
 @pytest.mark.asyncio
@@ -590,11 +539,71 @@ async def test_get_own_blocks(httpx_mock, api):
     }
 
 
+def test_parse_dshield():
+    data = """#
+#
+#   comments: systems@isc.sans.edu
+#    updated: 2024-12-29T15:00:44.231595
+#
+#
+#
+91.191.209.0	91.191.209.255	24	2595	LL-INVESTMENT-LTD	BG	abuse@cloudbs.biz
+80.94.95.0	80.94.95.255	24	2518	SS-NET	BG	hostmaster@ssnet.eu"""
+
+    expected_ips = main.parse_dshield(data)
+
+    assert expected_ips == ["91.191.209.0/24", "80.94.95.0/24"]
+
+
 @pytest.mark.asyncio
-async def test_firewall_rule____(httpx_mock, api):
+async def test_dshield(httpx_mock, api):
+
     httpx_mock.add_response(
         method="GET",
-        url="https://test_url/proxy/network/api/s/default/rest/firewallrule/group_id",
+        url="https://www.dshield.org/block.txt",
+        is_reusable=True,
+        text="""91.191.209.0	91.191.209.255	24	2595	LL-INVESTMENT-LTD	BG	abuse@cloudbs.biz
+80.94.95.0	80.94.95.255	24	2518	SS-NET	BG	hostmaster@ssnet.eu""",
     )
-    response = await api.firewall_rule("get", "group_id")
-    assert response.status_code == httpx.codes.OK
+    httpx_mock.add_response(
+        method="GET",
+        url="https://test_url/proxy/network/api/s/default/rest/firewallgroup/",
+        is_reusable=True,
+        json={
+            "data": [
+                {
+                    "_id": "test_group_id",
+                    "group_members": ["10.0.0.0/8"],
+                    "group_type": "address-group",
+                    "name": "dshield",
+                    "site_id": "662c3e002beda211f14d7407",
+                },
+            ],
+            "meta": {"rc": "ok"},
+        },
+    )
+    httpx_mock.add_response(
+        method="PUT",
+        url="https://test_url/proxy/network/api/s/default/rest/firewallgroup/test_group_id",
+        json={"data": []},
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://test_url/proxy/network/api/s/default/rest/firewallrule/",
+        is_reusable=True,
+        json={
+            "data": [{"name": "dshield"}, {"name": "abg_2"}],
+        },
+    )
+    await main.dshield(api)
+    requests = httpx_mock.get_requests()
+
+    assert requests[0].url == "https://www.dshield.org/block.txt"
+    assert (
+        requests[1].url
+        == "https://test_url/proxy/network/api/s/default/rest/firewallgroup/"
+    )
+    assert (
+        requests[2].url
+        == "https://test_url/proxy/network/api/s/default/rest/firewallgroup/test_group_id"
+    )

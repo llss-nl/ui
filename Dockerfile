@@ -5,11 +5,10 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Copy the requirements file into the container
-COPY requirements.txt .
-COPY main.py .
+COPY . .
 
 # Install the dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install /app/
 
 # Command to run the application
-CMD ["python", "main.py"]
+CMD ["firewall_block"]
