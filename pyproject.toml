@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "Unify Firewall Brock"
+name = "firewall_block"
 version = "0.1.0"
 description = "Block ip range based on unify alerts"
 readme = "README.md"
@@ -16,10 +16,14 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-dependencies = []
+dependencies = ["httpx", "python-dotenv"]
 
 [tool.setuptools.packages.find]
-where = ["application_name"]
+where = ["."]
+exclude = ["tests"]
+
+[project.scripts]
+firewall_block = "firewall_block.main:main"
 
 [tool.coverage.run]
 branch = true
