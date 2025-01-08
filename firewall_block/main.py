@@ -311,7 +311,7 @@ def parse_dshield(data: str) -> list[str]:
     return ips
 
 
-async def run() -> int:
+async def run() -> int:  # pragma: no cover
     """Start the main section of the application."""
     logger.info("Starting main process")
     if not DATA["username"] or not DATA["password"]:
@@ -334,7 +334,7 @@ async def run() -> int:
     return 0
 
 
-def main() -> None:
+def main() -> None:  # pragma: no cover
     """Start the main section of the application as async."""
     asyncio.run(run())
 

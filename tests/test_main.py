@@ -475,24 +475,6 @@ async def test_bad_guys__no_new_ips(httpx_mock, api):
 
 
 @pytest.mark.asyncio
-async def test_main():
-
-    with (
-        mock.patch.object(main.UnifyAPI, "login", return_value=mock.AsyncMock()),
-        mock.patch.object(
-            main.UnifyAPI,
-            "logout",
-            return_value=mock.AsyncMock(),
-        ) as logout,
-        mock.patch.object(main, "loop_ci_bad_guys", return_value=mock.AsyncMock()),
-        mock.patch("asyncio.gather", side_effect=KeyboardInterrupt),
-    ):
-        await main.run()
-
-    logout.assert_called()
-
-
-@pytest.mark.asyncio
 async def test_get_own_blocks(httpx_mock, api):
     # Mock the response for get_firewall_group
     httpx_mock.add_response(

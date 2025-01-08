@@ -141,7 +141,7 @@ class UnifyAPI:
         url: str,
         params: dict[str, Any] | None = None,
     ) -> httpx.Response:
-        msg = f"Making {method} request to {url} with data {params}"
+        msg = f"Making {method} request to {url}"
         logger.debug(msg)
         param = {}
         if params:
@@ -151,6 +151,6 @@ class UnifyAPI:
             headers=self.headers,
             **param,
         )
-        msg = f"Received response: {response.status_code}"
+        msg = f"Received response: {response.status_code} from {url}"
         logger.debug(msg)
         return response
