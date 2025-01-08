@@ -5,7 +5,8 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Copy the requirements file into the container
-COPY . .
+COPY ./firewall_block ./firewall_block
+COPY pyproject.toml .
 
 # Install the dependencies
 RUN pip install /app/
