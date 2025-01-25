@@ -538,7 +538,7 @@ def test_parse_dshield():
 
 
 @pytest.mark.asyncio
-async def test_dshield(httpx_mock, api):
+async def test_dshield__new_value__put_members(httpx_mock, api):
 
     httpx_mock.add_response(
         method="GET",
@@ -575,6 +575,64 @@ async def test_dshield(httpx_mock, api):
         is_reusable=True,
         json={
             "data": [{"name": "dshield"}, {"name": "abg_2"}],
+        },
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://test_url/proxy/network/api/s/default/rest/firewallgroup/test_group_id",
+        is_reusable=True,
+        json={
+            "data": [{"group_members": ["some_value"]}],
+        },
+    )
+    await main.dshield(api)
+    requests = httpx_mock.get_requests()
+
+    assert requests[0].url == "https://www.dshield.org/block.txt"
+    assert (
+        requests[1].url
+        == "https://test_url/proxy/network/api/s/default/rest/firewallgroup/"
+    )
+    assert (
+        requests[2].url
+        == "https://test_url/proxy/network/api/s/default/rest/firewallgroup/test_group_id"
+    )
+
+
+@pytest.mark.asyncio
+async def test_dshield__no_new_value__skip_put_members(httpx_mock, api):
+
+    httpx_mock.add_response(
+        method="GET",
+        url="https://www.dshield.org/block.txt",
+        is_reusable=True,
+        text="""91.191.209.0	91.191.209.255	24	2595	LL-INVESTMENT-LTD	BG	abuse@cloudbs.biz
+80.94.95.0	80.94.95.255	24	2518	SS-NET	BG	hostmaster@ssnet.eu""",
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://test_url/proxy/network/api/s/default/rest/firewallgroup/",
+        is_reusable=True,
+        json={
+            "data": [
+                {
+                    "_id": "test_group_id",
+                    "group_members": ["10.0.0.0/8"],
+                    "group_type": "address-group",
+                    "name": "dshield",
+                    "site_id": "662c3e002beda211f14d7407",
+                },
+            ],
+            "meta": {"rc": "ok"},
+        },
+    )
+
+    httpx_mock.add_response(
+        method="GET",
+        url="https://test_url/proxy/network/api/s/default/rest/firewallgroup/test_group_id",
+        is_reusable=True,
+        json={
+            "data": [{"group_members": ["91.191.209.0/24", "80.94.95.0/24"]}],
         },
     )
     await main.dshield(api)

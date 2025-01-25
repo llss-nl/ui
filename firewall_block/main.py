@@ -281,15 +281,18 @@ async def dshield(api: UnifyAPI) -> None:
     values = response.text
     expected_ips = parse_dshield(values)
     group_id = await get_firewall_group(api, "dshield")
-    await api.firewall_group(
-        "put",
-        group_id=group_id,
-        params={"group_members": expected_ips},
-    )
+    firewall_rules = await api.firewall_group("get", group_id=group_id)
+    data = firewall_rules.json()["data"][0]["group_members"]
+    if data != expected_ips:
+        await api.firewall_group(
+            "put",
+            group_id=group_id,
+            params={"group_members": expected_ips},
+        )
 
-    firewall_rules = await api.firewall_rule("get")
-    firewall_rules = firewall_rules.json()
-    await add_abg_firewall_rule(api, firewall_rules, name="dshield", ids=group_id)
+        firewall_rules = await api.firewall_rule("get")
+        firewall_rules = firewall_rules.json()
+        await add_abg_firewall_rule(api, firewall_rules, name="dshield", ids=group_id)
 
 
 def parse_dshield(data: str) -> list[str]:
