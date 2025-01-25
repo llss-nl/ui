@@ -177,7 +177,6 @@ async def test_loop_add_alarms__new_ips_added(httpx_mock, api):
 async def test_loop_add_alarms__no_data__no_ips_added(httpx_mock, api):
     httpx_mock.add_response(
         json={"data": []},
-        is_reusable=True,
     )
     data = {"group_members": []}
     ip_block = "test_id"
@@ -193,7 +192,6 @@ async def test_loop_add_alarms__no_new_ips(httpx_mock, api):
 
     httpx_mock.add_response(
         json={"data": [{"src_ip": "8.123.234.234", "timestamp": -1}]},
-        is_reusable=True,
     )
     data = {"group_members": []}
     ip_block = "test_id"
@@ -254,7 +252,6 @@ async def test_bad_guys__already_existing__ips__new_ips_added(
         json={
             "data": [],
         },
-        is_reusable=True,
     )
     httpx_mock.add_response(
         method="GET",
@@ -280,7 +277,6 @@ async def test_bad_guys__already_existing__ips__new_ips_added(
             ],
             "meta": {"rc": "ok"},
         },
-        is_reusable=True,
     )
 
     httpx_mock.add_response(
@@ -315,19 +311,71 @@ async def test_bad_guys__already_existing__ips__new_ips_added(
         == "https://test_url/proxy/network/api/s/default/rest/firewallgroup/662fa7f339ff5e79202dd1bd"
     )
     assert requests[4].content == expected
+
+
+@pytest.mark.asyncio
+async def test_bad_guys__already_existing_ips__ips__new_ips_added(
+    httpx_mock,
+    api,
+):
+    httpx_mock.add_response(
+        url="https://cinsscore.com/list/ci-badguys.txt",
+        text="1.1.1.1\n",
+    )
+    httpx_mock.add_response(
+        url="https://test_url/proxy/network/api/s/default/rest/firewallrule/",
+        json={
+            "data": [],
+        },
+    )
+    httpx_mock.add_response(
+        method="GET",
+        url="https://test_url/proxy/network/api/s/default/rest/firewallgroup/",
+        json={
+            "data": [
+                {
+                    "group_members": ["10.0.0.0/8"],
+                    "group_type": "address-group",
+                    "name": "DMZ",
+                    "site_id": "662c3e002beda211f14d7407",
+                },
+                {
+                    "_id": "662fa7f339ff5e79202dd1bd",
+                    "group_members": [
+                        "1.231.222.0/24",
+                        "1.1.1.1/24",
+                        "95.214.27.0/24",
+                    ],
+                    "group_type": "address-group",
+                    "name": "abg_1",
+                    "site_id": "662c3e002beda211f14d7407",
+                },
+            ],
+            "meta": {"rc": "ok"},
+        },
+    )
+
+    httpx_mock.add_response(
+        method="GET",
+        url="https://test_url/proxy/network/api/s/default/rest/firewallgroup/662fa7f339ff5e79202dd1bd",
+        json={"data": [{"group_members": ["1.1.1.1", "1.1.1.2"]}]},
+    )
+
+    await main.bad_guys(api)
+
+    requests = httpx_mock.get_requests()
+    assert requests[0].url == "https://cinsscore.com/list/ci-badguys.txt"
     assert (
-        requests[5].url
+        requests[1].url
         == "https://test_url/proxy/network/api/s/default/rest/firewallrule/"
     )
-    assert requests[5].content == (
-        b'{"action":"drop","enabled":true,"dst_address":"","dst_firewallgroup_ids":[],'
-        b'"dst_networkconf_type":"NETv4","icmp_typename":"","ipsec":"","logging":false'
-        b',"name":"abg_1","protocol":"all","protocol_match_excepted":false,"ruleset":"'
-        b'WAN_IN","rule_index":20001,"dst_networkconf_id":"","dst_port":"","setting_pr'
-        b'eference":"auto","src_address":"","src_firewallgroup_ids":["662fa7f339ff5e79'
-        b'202dd1bd"],"src_mac_address":"","src_networkconf_id":"","src_networkconf_typ'
-        b'e":"NETv4","src_port":"","state_established":false,"state_invalid":false,"st'
-        b'ate_new":false,"state_related":false}'
+    assert (
+        requests[2].url
+        == "https://test_url/proxy/network/api/s/default/rest/firewallgroup/"
+    )
+    assert (
+        requests[3].url
+        == "https://test_url/proxy/network/api/s/default/rest/firewallgroup/662fa7f339ff5e79202dd1bd"
     )
 
 
@@ -543,14 +591,12 @@ async def test_dshield__new_value__put_members(httpx_mock, api):
     httpx_mock.add_response(
         method="GET",
         url="https://www.dshield.org/block.txt",
-        is_reusable=True,
         text="""91.191.209.0	91.191.209.255	24	2595	LL-INVESTMENT-LTD	BG	abuse@cloudbs.biz
 80.94.95.0	80.94.95.255	24	2518	SS-NET	BG	hostmaster@ssnet.eu""",
     )
     httpx_mock.add_response(
         method="GET",
         url="https://test_url/proxy/network/api/s/default/rest/firewallgroup/",
-        is_reusable=True,
         json={
             "data": [
                 {
@@ -572,7 +618,6 @@ async def test_dshield__new_value__put_members(httpx_mock, api):
     httpx_mock.add_response(
         method="GET",
         url="https://test_url/proxy/network/api/s/default/rest/firewallrule/",
-        is_reusable=True,
         json={
             "data": [{"name": "dshield"}, {"name": "abg_2"}],
         },
@@ -580,7 +625,6 @@ async def test_dshield__new_value__put_members(httpx_mock, api):
     httpx_mock.add_response(
         method="GET",
         url="https://test_url/proxy/network/api/s/default/rest/firewallgroup/test_group_id",
-        is_reusable=True,
         json={
             "data": [{"group_members": ["some_value"]}],
         },
@@ -605,14 +649,12 @@ async def test_dshield__no_new_value__skip_put_members(httpx_mock, api):
     httpx_mock.add_response(
         method="GET",
         url="https://www.dshield.org/block.txt",
-        is_reusable=True,
         text="""91.191.209.0	91.191.209.255	24	2595	LL-INVESTMENT-LTD	BG	abuse@cloudbs.biz
 80.94.95.0	80.94.95.255	24	2518	SS-NET	BG	hostmaster@ssnet.eu""",
     )
     httpx_mock.add_response(
         method="GET",
         url="https://test_url/proxy/network/api/s/default/rest/firewallgroup/",
-        is_reusable=True,
         json={
             "data": [
                 {
@@ -630,7 +672,6 @@ async def test_dshield__no_new_value__skip_put_members(httpx_mock, api):
     httpx_mock.add_response(
         method="GET",
         url="https://test_url/proxy/network/api/s/default/rest/firewallgroup/test_group_id",
-        is_reusable=True,
         json={
             "data": [{"group_members": ["91.191.209.0/24", "80.94.95.0/24"]}],
         },
