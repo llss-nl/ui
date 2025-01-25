@@ -140,7 +140,7 @@ class UnifyAPI:
         Reboot the system.
 
         Returns:
-            Response: The alarms
+            Response: ?
 
         """
         logger.info("Reboot the system")
@@ -154,13 +154,27 @@ class UnifyAPI:
         Reboot the system.
 
         Returns:
-            Response: The alarms
+            Response: ?
 
         """
         logger.info("Power Off the system")
         return await self._make_request(
             method="post",
             url=f"{self.base_uri}:443/api/system/poweroff",
+        )
+
+    async def users_self(self) -> httpx.Response:
+        """
+        Get the logged-in user info.
+
+        Returns:
+            Response: The logged-in user info.
+
+        """
+        logger.info("Get the logged-in user info.")
+        return await self._make_request(
+            method="get",
+            url=f"{self.base_uri}:443/api/users/self",
         )
 
     async def _make_request(
