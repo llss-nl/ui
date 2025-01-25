@@ -53,10 +53,20 @@ async def test_alarm(httpx_mock, api):
 
 
 @pytest.mark.asyncio
-async def test_firewall_rule____(httpx_mock, api):
+async def test_firewall_rule(httpx_mock, api):
     httpx_mock.add_response(
         method="GET",
         url="https://test_url/proxy/network/api/s/default/rest/firewallrule/group_id",
     )
     response = await api.firewall_rule("get", "group_id")
+    assert response.status_code == httpx.codes.OK
+
+
+@pytest.mark.asyncio
+async def test_system_reboot(httpx_mock, api):
+    httpx_mock.add_response(
+        method="POST",
+        url="https://test_url:443/api/system/reboot",
+    )
+    response = await api.system_reboot()
     assert response.status_code == httpx.codes.OK
