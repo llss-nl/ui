@@ -80,3 +80,13 @@ async def test_system_poweroff(httpx_mock, api):
     )
     response = await api.system_poweroff()
     assert response.status_code == httpx.codes.OK
+
+
+@pytest.mark.asyncio
+async def test_users_self(httpx_mock, api):
+    httpx_mock.add_response(
+        method="GET",
+        url="https://test_url:443/api/users/self",
+    )
+    response = await api.users_self()
+    assert response.status_code == httpx.codes.OK
