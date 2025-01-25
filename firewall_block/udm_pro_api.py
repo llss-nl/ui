@@ -135,6 +135,20 @@ class UnifyAPI:
             url=url,
         )
 
+    async def system_reboot(self) -> httpx.Response:
+        """
+        Reboot the system.
+
+        Returns:
+            Response: The alarms
+
+        """
+        logger.info("Reboot the system")
+        return await self._make_request(
+            method="post",
+            url=f"{self.base_uri}:443/api/system/reboot",
+        )
+
     async def _make_request(
         self,
         method: str,
