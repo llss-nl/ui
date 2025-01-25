@@ -245,9 +245,12 @@ async def bad_guys(api: UnifyAPI) -> None:
             grp_data = await api.firewall_group("get", grp_id)
             data = grp_data.json()["data"][0]
             new_ips = set(data["group_members"])
-            new_ips.update(grp_ips)
-            data.update({"group_members": sorted(new_ips)})
-            await api.firewall_group("put", grp_id, params=data)
+            for ip in grp_ips:
+                if ip not in new_ips:
+                    new_ips.update(grp_ips)
+                    data.update({"group_members": sorted(new_ips)})
+                    await api.firewall_group("put", grp_id, params=data)
+                    break
         else:
             params = {
                 "name": f"abg_{group}",
@@ -256,13 +259,13 @@ async def bad_guys(api: UnifyAPI) -> None:
             }
             response = await api.firewall_group("post", params=params)
             grp_id = response.json()["data"][0]["_id"]
-        await add_abg_firewall_rule(
-            api,
-            firewall_rules,
-            ids=grp_id,
-            number=group,
-            name=f"abg_{group}",
-        )
+            await add_abg_firewall_rule(
+                api,
+                firewall_rules,
+                ids=grp_id,
+                number=group,
+                name=f"abg_{group}",
+            )
 
 
 async def dshield(api: UnifyAPI) -> None:
