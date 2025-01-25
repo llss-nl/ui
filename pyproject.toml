@@ -18,6 +18,21 @@ classifiers = [
 ]
 dependencies = ["httpx", "python-dotenv"]
 
+[project.optional-dependencies]
+dev = [
+    "black",
+    "build",
+    "coverage[toml]",
+    "mypy",
+    "pre-commit",
+    "pytest",
+    "pytest-asyncio",
+    "pytest-httpx",
+    "requests-mock",
+    "ruff",
+    "twine",
+]
+
 [tool.setuptools.packages.find]
 where = ["."]
 exclude = ["tests"]

@@ -32,14 +32,14 @@ jobs:
         uses: actions/cache@v4.2.0
         with:
           path: venv
-          key: ${{ runner.os }}-venv-${{ hashFiles('**/requirements*.txt') }}
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/pyproject.toml') }}
       - name: Install dependencies
         if: steps.cache-venv.outputs.cache-hit != 'true'
         run: |
           . venv/bin/activate
           python --version
           pip install uv
-          uv pip install -r requirements-dev.txt
+          uv pip install .[dev]
       - name: Cache pre-commit environment
         id: cache-precommit
         uses: actions/cache@v4.2.0
@@ -70,7 +70,7 @@ jobs:
         uses: actions/cache@v4.2.0
         with:
           path: venv
-          key: ${{ runner.os }}-venv-${{ hashFiles('**/requirements*.txt') }}
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/pyproject.toml') }}
       - name: Restore pre-commit environment from cache
         uses: actions/cache@v4.2.0
         with:
@@ -100,7 +100,7 @@ jobs:
         uses: actions/cache@v4.2.0
         with:
           path: venv
-          key: ${{ runner.os }}-venv-${{ hashFiles('**/requirements*.txt') }}
+          key: ${{ runner.os }}-venv-${{ hashFiles('**/pyproject.toml') }}
       - name: Run pytest
         timeout-minutes: 60
         env:
