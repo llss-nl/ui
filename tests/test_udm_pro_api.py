@@ -70,3 +70,13 @@ async def test_system_reboot(httpx_mock, api):
     )
     response = await api.system_reboot()
     assert response.status_code == httpx.codes.OK
+
+
+@pytest.mark.asyncio
+async def test_system_poweroff(httpx_mock, api):
+    httpx_mock.add_response(
+        method="POST",
+        url="https://test_url:443/api/system/poweroff",
+    )
+    response = await api.system_poweroff()
+    assert response.status_code == httpx.codes.OK
