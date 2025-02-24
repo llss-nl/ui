@@ -29,7 +29,7 @@ jobs:
         run: python -m venv venv
       - name: Cache base Python virtual environment
         id: cache-venv
-        uses: actions/cache@v4.2.0
+        uses: actions/cache@v4.2.1
         with:
           path: venv
           key: ${{ runner.os }}-venv-${{ hashFiles('**/pyproject.toml') }}
@@ -42,7 +42,7 @@ jobs:
           uv pip install .[dev]
       - name: Cache pre-commit environment
         id: cache-precommit
-        uses: actions/cache@v4.2.0
+        uses: actions/cache@v4.2.1
         with:
           path: ${{ env.PRE_COMMIT_CACHE }}
           key: ${{ runner.os }}-precommit-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -67,12 +67,12 @@ jobs:
           python-version: ${{ env.DEFAULT_PYTHON }}
           check-latest: true
       - name: Restore base Python virtual environment
-        uses: actions/cache@v4.2.0
+        uses: actions/cache@v4.2.1
         with:
           path: venv
           key: ${{ runner.os }}-venv-${{ hashFiles('**/pyproject.toml') }}
       - name: Restore pre-commit environment from cache
-        uses: actions/cache@v4.2.0
+        uses: actions/cache@v4.2.1
         with:
           path: ${{ env.PRE_COMMIT_CACHE }}
           key: ${{ runner.os }}-precommit-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -97,7 +97,7 @@ jobs:
           python-version: ${{ env.DEFAULT_PYTHON }}
           check-latest: true
       - name: Restore full Python virtual environment
-        uses: actions/cache@v4.2.0
+        uses: actions/cache@v4.2.1
         with:
           path: venv
           key: ${{ runner.os }}-venv-${{ hashFiles('**/pyproject.toml') }}
@@ -112,7 +112,7 @@ jobs:
           coverage xml -o coverage.xml
           python -m coverage report --fail-under=100
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4.6.0
+        uses: actions/upload-artifact@v4.6.1
         with:
           name: coverage
           path: coverage.xml
