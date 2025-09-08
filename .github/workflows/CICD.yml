@@ -18,10 +18,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Check out code from GitHub
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v5
       - name: Set up Python ${{ env.DEFAULT_PYTHON }}
         id: set-python
-        uses: actions/setup-python@v5.6.0
+        uses: actions/setup-python@v6.0.0
         with:
           python-version: ${{ env.DEFAULT_PYTHON }}
           check-latest: true
@@ -29,7 +29,7 @@ jobs:
         run: python -m venv venv
       - name: Cache base Python virtual environment
         id: cache-venv
-        uses: actions/cache@v4.2.3
+        uses: actions/cache@v4.2.4
         with:
           path: venv
           key: ${{ runner.os }}-venv-${{ hashFiles('**/pyproject.toml') }}
@@ -42,7 +42,7 @@ jobs:
           uv pip install .[dev]
       - name: Cache pre-commit environment
         id: cache-precommit
-        uses: actions/cache@v4.2.3
+        uses: actions/cache@v4.2.4
         with:
           path: ${{ env.PRE_COMMIT_CACHE }}
           key: ${{ runner.os }}-precommit-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -60,19 +60,19 @@ jobs:
         linter: [ruff, mypy, check-json, codespell, black]
     steps:
       - name: Check out code from GitHub
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v5
       - name: Set up Python ${{ needs.setup.outputs.python-version }}
-        uses: actions/setup-python@v5.6.0
+        uses: actions/setup-python@v6.0.0
         with:
           python-version: ${{ env.DEFAULT_PYTHON }}
           check-latest: true
       - name: Restore base Python virtual environment
-        uses: actions/cache@v4.2.3
+        uses: actions/cache@v4.2.4
         with:
           path: venv
           key: ${{ runner.os }}-venv-${{ hashFiles('**/pyproject.toml') }}
       - name: Restore pre-commit environment from cache
-        uses: actions/cache@v4.2.3
+        uses: actions/cache@v4.2.4
         with:
           path: ${{ env.PRE_COMMIT_CACHE }}
           key: ${{ runner.os }}-precommit-${{ hashFiles('.pre-commit-config.yaml') }}
@@ -90,14 +90,14 @@ jobs:
     name: Run tests Python
     steps:
       - name: Check out code from GitHub
-        uses: actions/checkout@v4.2.2
+        uses: actions/checkout@v5
       - name: Set up Python ${{ needs.setup.outputs.python-version }}
-        uses: actions/setup-python@v5.6.0
+        uses: actions/setup-python@v6.0.0
         with:
           python-version: ${{ env.DEFAULT_PYTHON }}
           check-latest: true
       - name: Restore full Python virtual environment
-        uses: actions/cache@v4.2.3
+        uses: actions/cache@v4.2.4
         with:
           path: venv
           key: ${{ runner.os }}-venv-${{ hashFiles('**/pyproject.toml') }}
